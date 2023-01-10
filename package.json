@@ -1,0 +1,23 @@
+{
+  "name": "akahu-firefly",
+  "version": "1.0.0",
+  "description": "A Firefly III importer that uses the Akahu API as a source",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jasmoran/akahu-firefly.git"
+  },
+  "keywords": [
+    "akahu",
+    "firefly-iii"
+  ],
+  "author": "Jack Moran",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/jasmoran/akahu-firefly/issues"
+  },
+  "homepage": "https://github.com/jasmoran/akahu-firefly#readme"
+}
