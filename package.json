@@ -2,9 +2,10 @@
   "name": "akahu-firefly",
   "version": "1.0.0",
   "description": "A Firefly III importer that uses the Akahu API as a source",
-  "main": "index.js",
+  "main": "index.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "ts-node index.ts"
   },
   "repository": {
     "type": "git",
@@ -19,5 +20,11 @@
   "bugs": {
     "url": "https://github.com/jasmoran/akahu-firefly/issues"
   },
-  "homepage": "https://github.com/jasmoran/akahu-firefly#readme"
+  "homepage": "https://github.com/jasmoran/akahu-firefly#readme",
+  "devDependencies": {
+    "@tsconfig/node18-strictest": "^1.0.0",
+    "@types/node": "^18.11.18",
+    "ts-node": "^10.9.1",
+    "typescript": "^4.9.4"
+  }
 }
