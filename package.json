@@ -35,6 +35,7 @@
     "typescript": "^4.9.4"
   },
   "dependencies": {
+    "akahu": "^1.10.0",
     "knex": "^2.4.0",
     "pg": "^8.8.0"
   }
