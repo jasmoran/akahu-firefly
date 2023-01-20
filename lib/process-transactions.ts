@@ -9,7 +9,7 @@ interface CurrencyConversion {
 }
 
 export class ProcessTransactions {
-  private assetIdForAccount (akahuAccountId: string): number {
+  private lookupAkahuAccountId (akahuAccountId: string): number {
     // TODO: Source this from Firefly
     const accountToAsset: Record<string, number> = {
       acc_clcpadkvo000a08mh7qgxch6h: 1,
@@ -52,12 +52,12 @@ export class ProcessTransactions {
 
       if (transaction.amount < 0) {
         fireflyTrans.type = 'withdrawal'
-        fireflyTrans.source_id = this.assetIdForAccount(transaction._account).toString()
+        fireflyTrans.source_id = this.lookupAkahuAccountId(transaction._account).toString()
         fireflyTrans.destination_id = 'expense account' // TODO
       } else {
         fireflyTrans.type = 'deposit'
         fireflyTrans.source_id = 'revenue account' // TODO
-        fireflyTrans.destination_id = this.assetIdForAccount(transaction._account).toString()
+        fireflyTrans.destination_id = this.lookupAkahuAccountId(transaction._account).toString()
       }
 
       // Add foreign currency details if any available
