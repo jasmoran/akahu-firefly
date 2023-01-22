@@ -1,5 +1,6 @@
 import type { EnrichedTransaction } from 'akahu'
 import type { TransactionSplitStore } from 'firefly-iii-sdk-typescript'
+import * as firefly from './firefly'
 
 interface CurrencyConversion {
   currency: string
@@ -8,7 +9,56 @@ interface CurrencyConversion {
   fee?: number
 }
 
+enum AccountType {
+  Expense = 'expense', Revenue = 'revenue'
+}
+
+type AccountPair = Record<AccountType, number | undefined>
+
 export class ProcessTransactions {
+  // Formats a bank account string:
+  // 2 digit Bank Number
+  // 4 digit Branch Number
+  // 7 digit Account Body
+  // 3 digit Account Suffix
+  private formatBankNumber (bankAccountNumber: string): string {
+    const lengths = [2, 4, 7, 3]
+    return bankAccountNumber
+      .split('-')
+      .map((part, ix) => parseInt(part).toString().padStart(lengths[ix] ?? 0, '0'))
+      .join('-')
+  }
+
+  private async processFireflyBankAccounts (): Promise<Record<string, AccountPair>> {
+    const accounts = await firefly.accountsWithNumber()
+    const grouped: Record<string, AccountPair> = {}
+
+    accounts
+      .filter(account => /"\d+-\d+-\d+-\d+"/.test(account.account_number))
+      .forEach(account => {
+        const bankAccountNumber = this.formatBankNumber(account.account_number)
+        const accountPair: AccountPair = grouped[bankAccountNumber] ?? { expense: undefined, revenue: undefined }
+
+        // Expense account
+        if (account.account_type_id === 4) {
+          accountPair.expense ??= account.id
+
+        // Revenue account
+        } else if (account.account_type_id === 5) {
+          accountPair.revenue ??= account.id
+
+        // User owned account (always use these accounts if they exist)
+        } else {
+          accountPair.expense = account.id
+          accountPair.revenue = account.id
+        }
+
+        grouped[bankAccountNumber] = accountPair
+      })
+
+    return grouped
+  }
+
   private lookupAkahuAccountId (akahuAccountId: string): number {
     // TODO: Source this from Firefly
     const accountToAsset: Record<string, number> = {
