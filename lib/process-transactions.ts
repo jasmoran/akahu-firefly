@@ -94,6 +94,14 @@ export class ProcessTransactions {
     }
   }
 
+  private lookupBankAccountNumber (type: AccountType, bankAccountNumber: string): number | undefined {
+    if (!/"\d+-\d+-\d+-\d+"/.test(bankAccountNumber)) return undefined
+
+    bankAccountNumber = this.formatBankNumber(bankAccountNumber)
+
+    return this.accountsByBankNumber[bankAccountNumber]?.[type]
+  }
+
   public processTransactions (transactions: EnrichedTransaction[]): TransactionSplitStore[] {
     const processed = transactions.map(transaction => {
       // TODO:
