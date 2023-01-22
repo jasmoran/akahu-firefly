@@ -16,6 +16,18 @@ enum AccountType {
 type AccountPair = Record<AccountType, number | undefined>
 
 export class ProcessTransactions {
+  accountsByBankNumber: Record<string, AccountPair>
+
+  private constructor (accountsByBankNumber: Record<string, AccountPair>) {
+    this.accountsByBankNumber = accountsByBankNumber
+  }
+
+  public async build (): Promise<ProcessTransactions> {
+    return new ProcessTransactions(
+      await this.processFireflyBankAccounts()
+    )
+  }
+
   // Formats a bank account string:
   // 2 digit Bank Number
   // 4 digit Branch Number
