@@ -22,7 +22,7 @@ export class ProcessTransactions {
     this.accountsByBankNumber = accountsByBankNumber
   }
 
-  public async build (): Promise<ProcessTransactions> {
+  public static async build (): Promise<ProcessTransactions> {
     return new ProcessTransactions(
       await this.processFireflyBankAccounts()
     )
@@ -33,7 +33,7 @@ export class ProcessTransactions {
   // 4 digit Branch Number
   // 7 digit Account Body
   // 3 digit Account Suffix
-  private formatBankNumber (bankAccountNumber: string): string {
+  private static formatBankNumber (bankAccountNumber: string): string {
     const lengths = [2, 4, 7, 3]
     return bankAccountNumber
       .split('-')
@@ -41,7 +41,7 @@ export class ProcessTransactions {
       .join('-')
   }
 
-  private async processFireflyBankAccounts (): Promise<Record<string, AccountPair>> {
+  private static async processFireflyBankAccounts (): Promise<Record<string, AccountPair>> {
     const accounts = await firefly.accountsWithNumber()
     const grouped: Record<string, AccountPair> = {}
 
@@ -97,7 +97,7 @@ export class ProcessTransactions {
   private lookupBankAccountNumber (type: AccountType, bankAccountNumber: string): number | undefined {
     if (!/"\d+-\d+-\d+-\d+"/.test(bankAccountNumber)) return undefined
 
-    bankAccountNumber = this.formatBankNumber(bankAccountNumber)
+    bankAccountNumber = ProcessTransactions.formatBankNumber(bankAccountNumber)
 
     return this.accountsByBankNumber[bankAccountNumber]?.[type]
   }
