@@ -46,7 +46,7 @@ export class ProcessTransactions {
     const grouped: Record<string, AccountPair> = {}
 
     accounts
-      .filter(account => /"\d+-\d+-\d+-\d+"/.test(account.account_number))
+      .filter(account => /\d+-\d+-\d+-\d+/.test(account.account_number))
       .forEach(account => {
         const bankAccountNumber = this.formatBankNumber(account.account_number)
         const accountPair: AccountPair = grouped[bankAccountNumber] ?? { expense: undefined, revenue: undefined }
