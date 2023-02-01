@@ -19,7 +19,8 @@ function accountMeta<T> (name: string) {
     const accounts = await db('accounts')
       .select('accounts.id', 'accounts.account_type_id', 'account_meta.data')
       .innerJoin('account_meta', 'accounts.id', 'account_meta.account_id')
-      .where('account_meta.name', name)
+      .whereNull('accounts.deleted_at')
+      .andWhere('account_meta.name', name)
 
     accounts.forEach(account => {
       account[name] = JSON.parse(account.data)
