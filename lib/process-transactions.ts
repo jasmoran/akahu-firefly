@@ -17,15 +17,22 @@ type AccountPair = Record<AccountType, number | undefined>
 
 export class ProcessTransactions {
   accountsByBankNumber: Record<string, AccountPair>
+  accountsByExternalId: Record<string, AccountPair>
 
-  private constructor (accountsByBankNumber: Record<string, AccountPair>) {
+  private constructor (
+    accountsByBankNumber: Record<string, AccountPair>,
+    accountsByExternalId: Record<string, AccountPair>
+  ) {
     this.accountsByBankNumber = accountsByBankNumber
+    this.accountsByExternalId = accountsByExternalId
   }
 
   public static async build (): Promise<ProcessTransactions> {
-    return new ProcessTransactions(
-      await this.processFireflyBankAccounts()
-    )
+    const [bankAccounts, accountIds] = await Promise.all([
+      this.processFireflyBankAccounts(),
+      this.processFireflyExternalIds()
+    ])
+    return new ProcessTransactions(bankAccounts, accountIds)
   }
 
   // Formats a bank account string:
@@ -66,6 +73,34 @@ export class ProcessTransactions {
         }
 
         grouped[bankAccountNumber] = accountPair
+      })
+
+    return grouped
+  }
+
+  private static async processFireflyExternalIds (): Promise<Record<string, AccountPair>> {
+    const accounts = await firefly.accountsWithExternalId()
+    const grouped: Record<string, AccountPair> = {}
+
+    accounts
+      .forEach(account => {
+        const accountPair: AccountPair = grouped[account.external_id] ?? { expense: undefined, revenue: undefined }
+
+        // Expense account
+        if (account.account_type_id === 4) {
+          accountPair.expense ??= account.id
+
+        // Revenue account
+        } else if (account.account_type_id === 5) {
+          accountPair.revenue ??= account.id
+
+        // User owned account (always use these accounts if they exist)
+        } else {
+          accountPair.expense = account.id
+          accountPair.revenue = account.id
+        }
+
+        grouped[account.external_id] = accountPair
       })
 
     return grouped
