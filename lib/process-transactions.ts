@@ -129,12 +129,12 @@ export class ProcessTransactions {
     }
   }
 
-  private lookupBankAccountNumber (type: AccountType, bankAccountNumber: string): number | undefined {
-    if (!/"\d+-\d+-\d+-\d+"/.test(bankAccountNumber)) return undefined
+  private lookupBankAccountNumber (bankAccountNumber: string): AccountPair {
+    if (!/"\d+-\d+-\d+-\d+"/.test(bankAccountNumber)) return { expense: undefined, revenue: undefined }
 
     bankAccountNumber = ProcessTransactions.formatBankNumber(bankAccountNumber)
 
-    return this.accountsByBankNumber[bankAccountNumber]?.[type]
+    return this.accountsByBankNumber[bankAccountNumber] ?? { expense: undefined, revenue: undefined }
   }
 
   public processTransactions (transactions: EnrichedTransaction[]): TransactionSplitStore[] {
