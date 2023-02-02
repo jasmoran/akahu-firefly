@@ -106,27 +106,8 @@ export class ProcessTransactions {
     return grouped
   }
 
-  private lookupAkahuAccountId (akahuAccountId: string): number {
-    // TODO: Source this from Firefly
-    const accountToAsset: Record<string, number> = {
-      acc_clcpadkvo000a08mh7qgxch6h: 1,
-      acc_clcpadkvm000808mh3cky82f5: 3,
-      acc_clcpadkty000408mha3qscnwm: 198,
-      acc_clcpadktf000208mhglosagzn: 1314,
-      acc_clcpadkv3000608mhcwmk1hff: 1315,
-      acc_clcpadkvn000908mh0n8valhy: 1316,
-      acc_clcpadku1000508mh80h7h3kl: 1317,
-      acc_clcpadktg000308mh78odg7oz: 1661,
-      acc_clcpadkv4000708mh9zkzfah7: 1662
-    }
-
-    const existingAsset = accountToAsset[akahuAccountId]
-    if (existingAsset === undefined) {
-      console.log(`Creating asset for ${akahuAccountId}`)
-      return 99999
-    } else {
-      return existingAsset
-    }
+  private lookupAkahuAccountId (akahuAccountId: string): AccountPair {
+    return this.accountsByExternalId[akahuAccountId] ?? { expense: undefined, revenue: undefined }
   }
 
   private lookupBankAccountNumber (bankAccountNumber: string): AccountPair {
@@ -155,14 +136,17 @@ export class ProcessTransactions {
         external_id: transaction._id
       }
 
+      // Look up Akahu Account ID (acc_xxxxx)
+      const account = (this.lookupAkahuAccountId(transaction._account).revenue ?? '').toString()
+
       if (transaction.amount < 0) {
         fireflyTrans.type = 'withdrawal'
-        fireflyTrans.source_id = this.lookupAkahuAccountId(transaction._account).toString()
+        fireflyTrans.source_id = account
         fireflyTrans.destination_id = 'expense account' // TODO
       } else {
         fireflyTrans.type = 'deposit'
         fireflyTrans.source_id = 'revenue account' // TODO
-        fireflyTrans.destination_id = this.lookupAkahuAccountId(transaction._account).toString()
+        fireflyTrans.destination_id = account
       }
 
       // Add foreign currency details if any available
