@@ -15,24 +15,36 @@ enum AccountType {
 
 type AccountPair = Record<AccountType, number | undefined>
 
+interface Transaction extends firefly.Transaction {
+  akahuIds: string[]
+}
+
 export class ProcessTransactions {
   accountsByBankNumber: Record<string, AccountPair>
   accountsByExternalId: Record<string, AccountPair>
 
+  transactions: Transaction[]
+  transactionsByAkahuId: Record<string, Transaction>
+
   private constructor (
     accountsByBankNumber: Record<string, AccountPair>,
-    accountsByExternalId: Record<string, AccountPair>
+    accountsByExternalId: Record<string, AccountPair>,
+    transactions: Transaction[],
+    transactionsByAkahuId: Record<string, Transaction>
   ) {
     this.accountsByBankNumber = accountsByBankNumber
     this.accountsByExternalId = accountsByExternalId
+    this.transactions = transactions
+    this.transactionsByAkahuId = transactionsByAkahuId
   }
 
   public static async build (): Promise<ProcessTransactions> {
-    const [bankAccounts, accountIds] = await Promise.all([
+    const [bankAccounts, accountIds, [transactions, transactionsByAkahuId]] = await Promise.all([
       this.processFireflyBankAccounts(),
-      this.processFireflyExternalIds()
+      this.processFireflyExternalIds(),
+      this.processFireflyTransactions()
     ])
-    return new ProcessTransactions(bankAccounts, accountIds)
+    return new ProcessTransactions(bankAccounts, accountIds, transactions, transactionsByAkahuId)
   }
 
   // Formats a bank account string:
@@ -104,6 +116,35 @@ export class ProcessTransactions {
       })
 
     return grouped
+  }
+
+  private static async processFireflyTransactions (): Promise<[Transaction[], Record<string, Transaction>]> {
+    const transactions = (await firefly.transactions()) as Transaction[]
+    const transactionsByAkahuId: Record<string, Transaction> = {}
+
+    // Process each Firefly transaction
+    transactions.forEach(transaction => {
+      // Split comma seperated external IDs into an array
+      // Array should be empty if external ID is empty or null
+      const externalId = transaction.external_id ?? ''
+      const externalIds = externalId.length === 0 ? [] : externalId.split(',')
+      const akahuIds = externalIds.filter(id => id.startsWith('trans_'))
+
+      // Add akahu IDs to the transaction
+      transaction.akahuIds = akahuIds
+
+      // Add transaction to transactionsByAkahuId
+      akahuIds.forEach(externalId => {
+        const existing = transactionsByAkahuId[externalId]
+        if (existing === undefined) {
+          transactionsByAkahuId[externalId] = transaction
+        } else {
+          console.error(`External ID ${externalId} duplicated in ${existing.id} and ${transaction.id}`)
+        }
+      })
+    })
+
+    return [transactions, transactionsByAkahuId]
   }
 
   private lookupAkahuAccountId (akahuAccountId: string): AccountPair {
