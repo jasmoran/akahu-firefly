@@ -15,14 +15,14 @@ export interface AccountWithExternalId {
 
 export interface Transaction {
   id: number
-  transaction_type_id: number
+  type: string
   description: string
   date: Date
   amount: string | number
   source_id: number
   destination_id: number
   foreign_amount: string | number | null
-  foreign_currency_id: number | null
+  foreign_currency_code: string | null
   external_id: string | null
 }
 
@@ -56,14 +56,14 @@ export async function transactions (): Promise<Transaction[]> {
   const transactions = await db('transaction_journals AS tj')
     .select(
       'tj.id',
-      'tj.transaction_type_id',
+      'tt.type',
       'tj.description',
       'tj.date',
       'dst.amount',
       'src.account_id AS source_id',
       'dst.account_id AS destination_id',
-      'src.foreign_amount',
-      'src.foreign_currency_id',
+      'dst.foreign_amount',
+      'tc.code AS foreign_currency_code',
       'meta.data AS external_id'
     )
     .leftJoin('transactions AS src', function () {
@@ -81,6 +81,8 @@ export async function transactions (): Promise<Transaction[]> {
         .andOnVal('meta.name', 'external_id')
         .andOnNull('meta.deleted_at')
     })
+    .leftJoin('transaction_currencies AS tc', 'dst.foreign_currency_id', 'tc.id')
+    .leftJoin('transaction_types AS tt', 'tj.transaction_type_id', 'tt.id')
     .whereNull('tj.deleted_at')
 
   transactions.forEach(account => {
