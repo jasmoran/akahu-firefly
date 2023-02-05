@@ -158,53 +158,57 @@ export class ProcessTransactions {
     return this.accountsByBankNumber[bankAccountNumber] ?? { expense: undefined, revenue: undefined }
   }
 
+  private akahuToFirefly (transaction: EnrichedTransaction): Transaction {
+    // TODO:
+    // transaction.meta.reference
+    // transaction.meta.particulars
+    // transaction.meta.code
+    // transaction.meta.other_account
+    // transaction.type
+    // transaction.merchant
+
+    // Look up Akahu Account ID (acc_xxxxx)
+    const account = this.lookupAkahuAccountId(transaction._account).revenue ?? 0
+
+    let type, sourceId, destinationId
+    if (transaction.amount < 0) {
+      type = 'Withdrawal'
+      sourceId = account
+      destinationId = 0 // TODO - expense account
+    } else {
+      type = 'Deposit'
+      sourceId = 0 // TODO - revenue account
+      destinationId = account
+    }
+
+    const fireflyTrans: Transaction = {
+      type,
+      source_id: sourceId,
+      destination_id: destinationId,
+      date: new Date(transaction.date),
+      amount: Math.abs(transaction.amount).toString(),
+      description: transaction.description,
+      akahuIds: [transaction._id]
+    }
+
+    // Add foreign currency details if any available
+    const conversion: CurrencyConversion | undefined = (transaction.meta.conversion as unknown) as CurrencyConversion | undefined
+    if (conversion !== undefined) {
+      fireflyTrans.foreign_amount = Math.abs(conversion.amount).toString()
+      fireflyTrans.foreign_currency_code = conversion.currency
+      // TODO: Store fee/rate
+    }
+
+    // Use personal finance group as category
+    fireflyTrans.category_name = transaction?.category?.groups?.['personal_finance']?.name ?? null
+    // TODO: Store other categories
+
+    return fireflyTrans
+  }
+
   public processTransactions (transactions: EnrichedTransaction[]): Transaction[] {
     const processed = transactions.map(transaction => {
-      // TODO:
-      // transaction.meta.reference
-      // transaction.meta.particulars
-      // transaction.meta.code
-      // transaction.meta.other_account
-      // transaction.type
-      // transaction.merchant
-
-      // Look up Akahu Account ID (acc_xxxxx)
-      const account = this.lookupAkahuAccountId(transaction._account).revenue ?? 0
-
-      let type, sourceId, destinationId
-      if (transaction.amount < 0) {
-        type = 'Withdrawal'
-        sourceId = account
-        destinationId = 0 // TODO - expense account
-      } else {
-        type = 'Deposit'
-        sourceId = 0 // TODO - revenue account
-        destinationId = account
-      }
-
-      const fireflyTrans: Transaction = {
-        type,
-        source_id: sourceId,
-        destination_id: destinationId,
-        date: new Date(transaction.date),
-        amount: Math.abs(transaction.amount).toString(),
-        description: transaction.description,
-        akahuIds: [transaction._id]
-      }
-
-      // Add foreign currency details if any available
-      const conversion: CurrencyConversion | undefined = (transaction.meta.conversion as unknown) as CurrencyConversion | undefined
-      if (conversion !== undefined) {
-        fireflyTrans.foreign_amount = Math.abs(conversion.amount).toString()
-        fireflyTrans.foreign_currency_code = conversion.currency
-        // TODO: Store fee/rate
-      }
-
-      // Use personal finance group as category
-      fireflyTrans.category_name = transaction?.category?.groups?.['personal_finance']?.name ?? null
-      // TODO: Store other categories
-
-      return fireflyTrans
+      return this.akahuToFirefly(transaction)
     })
 
     return processed
