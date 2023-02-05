@@ -24,6 +24,7 @@ export interface Transaction {
   foreign_amount: string | number | null
   foreign_currency_code: string | null
   external_id: string | null
+  category_name: string | null
 }
 
 function accountMeta<T> (name: string) {
@@ -64,7 +65,8 @@ export async function transactions (): Promise<Transaction[]> {
       'dst.account_id AS destination_id',
       'dst.foreign_amount',
       'tc.code AS foreign_currency_code',
-      'meta.data AS external_id'
+      'meta.data AS external_id',
+      'c.name AS category_name'
     )
     .leftJoin('transactions AS src', function () {
       this.on('tj.id', 'src.transaction_journal_id')
@@ -83,6 +85,8 @@ export async function transactions (): Promise<Transaction[]> {
     })
     .leftJoin('transaction_currencies AS tc', 'dst.foreign_currency_id', 'tc.id')
     .leftJoin('transaction_types AS tt', 'tj.transaction_type_id', 'tt.id')
+    .leftJoin('category_transaction_journal AS ctj', 'tj.id', 'ctj.transaction_journal_id')
+    .leftJoin('categories AS c', 'ctj.category_id', 'c.id')
     .whereNull('tj.deleted_at')
 
   transactions.forEach(account => {
