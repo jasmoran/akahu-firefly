@@ -1,5 +1,4 @@
 import type { EnrichedTransaction } from 'akahu'
-import type { TransactionSplitStore } from 'firefly-iii-sdk-typescript'
 import * as firefly from './firefly'
 
 interface CurrencyConversion {
@@ -159,7 +158,7 @@ export class ProcessTransactions {
     return this.accountsByBankNumber[bankAccountNumber] ?? { expense: undefined, revenue: undefined }
   }
 
-  public processTransactions (transactions: EnrichedTransaction[]): TransactionSplitStore[] {
+  public processTransactions (transactions: EnrichedTransaction[]): Transaction[] {
     const processed = transactions.map(transaction => {
       // TODO:
       // transaction.meta.reference
@@ -169,25 +168,28 @@ export class ProcessTransactions {
       // transaction.type
       // transaction.merchant
 
-      const fireflyTrans: TransactionSplitStore = {
-        type: 'deposit',
-        date: transaction.date,
-        amount: Math.abs(transaction.amount).toString(),
-        description: transaction.description,
-        external_id: transaction._id
+      // Look up Akahu Account ID (acc_xxxxx)
+      const account = this.lookupAkahuAccountId(transaction._account).revenue ?? 0
+
+      let type, sourceId, destinationId
+      if (transaction.amount < 0) {
+        type = 'Withdrawal'
+        sourceId = account
+        destinationId = 0 // TODO - expense account
+      } else {
+        type = 'Deposit'
+        sourceId = 0 // TODO - revenue account
+        destinationId = account
       }
 
-      // Look up Akahu Account ID (acc_xxxxx)
-      const account = (this.lookupAkahuAccountId(transaction._account).revenue ?? '').toString()
-
-      if (transaction.amount < 0) {
-        fireflyTrans.type = 'withdrawal'
-        fireflyTrans.source_id = account
-        fireflyTrans.destination_id = 'expense account' // TODO
-      } else {
-        fireflyTrans.type = 'deposit'
-        fireflyTrans.source_id = 'revenue account' // TODO
-        fireflyTrans.destination_id = account
+      const fireflyTrans: Transaction = {
+        type,
+        source_id: sourceId,
+        destination_id: destinationId,
+        date: new Date(transaction.date),
+        amount: Math.abs(transaction.amount).toString(),
+        description: transaction.description,
+        akahuIds: [transaction._id]
       }
 
       // Add foreign currency details if any available
