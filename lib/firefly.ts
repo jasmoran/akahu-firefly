@@ -60,7 +60,7 @@ export async function transactions (): Promise<Transaction[]> {
       'tt.type',
       'tj.description',
       'tj.date',
-      'dst.amount',
+      db.raw('ROUND(dst.amount, 2) AS amount'),
       'src.account_id AS source_id',
       'dst.account_id AS destination_id',
       'dst.foreign_amount',
