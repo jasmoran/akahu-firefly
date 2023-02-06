@@ -24,6 +24,7 @@
   "homepage": "https://github.com/jasmoran/akahu-firefly#readme",
   "devDependencies": {
     "@tsconfig/node18-strictest": "^1.0.0",
+    "@types/big.js": "^6.1.6",
     "@types/node": "^18.11.18",
     "@typescript-eslint/eslint-plugin": "^5.48.1",
     "eslint": "^8.31.0",
@@ -36,6 +37,7 @@
   },
   "dependencies": {
     "akahu": "^1.10.0",
+    "big.js": "^6.2.1",
     "firefly-iii-sdk-typescript": "^1.0.1",
     "knex": "^2.4.0",
     "pg": "^8.8.0"

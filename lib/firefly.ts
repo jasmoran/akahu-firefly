@@ -14,17 +14,17 @@ export interface AccountWithExternalId {
 }
 
 export interface Transaction {
-  id?: number
+  id: number
   type: string
   description: string
   date: Date
   amount: string | number
   source_id: number
   destination_id: number
-  foreign_amount?: string | number | null
-  foreign_currency_code?: string | null
-  external_id?: string | null
-  category_name?: string | null
+  foreign_amount: string | number | null
+  foreign_currency_code: string | null
+  external_id: string | null
+  category_name: string | null
 }
 
 function accountMeta<T> (name: string) {

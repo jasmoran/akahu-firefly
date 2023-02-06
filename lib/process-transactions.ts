@@ -1,4 +1,5 @@
 import type { EnrichedTransaction } from 'akahu'
+import Big from 'big.js'
 import * as firefly from './firefly'
 
 interface CurrencyConversion {
@@ -14,7 +15,17 @@ enum AccountType {
 
 type AccountPair = Record<AccountType, number | undefined>
 
-interface Transaction extends firefly.Transaction {
+interface Transaction {
+  id: number
+  type: string
+  description: string
+  date: Date
+  amount: Big
+  sourceId: number
+  destinationId: number
+  foreignAmount?: Big
+  foreignCurrencyCode?: string
+  categoryName?: string
   akahuIds: string[]
 }
 
@@ -118,19 +129,33 @@ export class ProcessTransactions {
   }
 
   private static async processFireflyTransactions (): Promise<[Transaction[], Record<string, Transaction>]> {
-    const transactions = (await firefly.transactions()) as Transaction[]
+    const fireflyTransactions = await firefly.transactions()
     const transactionsByAkahuId: Record<string, Transaction> = {}
 
     // Process each Firefly transaction
-    transactions.forEach(transaction => {
+    const transactions = fireflyTransactions.map(fireflyTransaction => {
       // Split comma seperated external IDs into an array
       // Array should be empty if external ID is empty or null
-      const externalId = transaction.external_id ?? ''
+      const externalId = fireflyTransaction.external_id ?? ''
       const externalIds = externalId.length === 0 ? [] : externalId.split(',')
       const akahuIds = externalIds.filter(id => id.startsWith('trans_'))
 
-      // Add akahu IDs to the transaction
-      transaction.akahuIds = akahuIds
+      // Create Transaction from Firefly data
+      const transaction: Transaction = {
+        id: fireflyTransaction.id,
+        type: fireflyTransaction.type,
+        description: fireflyTransaction.description,
+        date: fireflyTransaction.date,
+        amount: Big(fireflyTransaction.amount),
+        sourceId: fireflyTransaction.source_id,
+        destinationId: fireflyTransaction.destination_id,
+        akahuIds
+      }
+
+      // Add optional values
+      if (fireflyTransaction.foreign_amount) transaction.foreignAmount = Big(fireflyTransaction.foreign_amount)
+      if (fireflyTransaction.foreign_currency_code) transaction.foreignCurrencyCode = fireflyTransaction.foreign_currency_code
+      if (fireflyTransaction.category_name) transaction.categoryName = fireflyTransaction.category_name
 
       // Add transaction to transactionsByAkahuId
       akahuIds.forEach(externalId => {
@@ -138,9 +163,11 @@ export class ProcessTransactions {
         if (existing === undefined) {
           transactionsByAkahuId[externalId] = transaction
         } else {
-          console.error(`External ID ${externalId} duplicated in ${existing.id} and ${transaction.id}`)
+          console.error(`External ID ${externalId} duplicated in ${existing.id} and ${fireflyTransaction.id}`)
         }
       })
+
+      return transaction
     })
 
     return [transactions, transactionsByAkahuId]
@@ -182,11 +209,12 @@ export class ProcessTransactions {
     }
 
     const fireflyTrans: Transaction = {
+      id: 0,
       type,
-      source_id: sourceId,
-      destination_id: destinationId,
+      sourceId,
+      destinationId,
       date: new Date(transaction.date),
-      amount: Math.abs(transaction.amount).toString(),
+      amount: Big(transaction.amount).abs(),
       description: transaction.description,
       akahuIds: [transaction._id]
     }
@@ -194,13 +222,14 @@ export class ProcessTransactions {
     // Add foreign currency details if any available
     const conversion: CurrencyConversion | undefined = (transaction.meta.conversion as unknown) as CurrencyConversion | undefined
     if (conversion !== undefined) {
-      fireflyTrans.foreign_amount = Math.abs(conversion.amount).toString()
-      fireflyTrans.foreign_currency_code = conversion.currency
+      fireflyTrans.foreignAmount = Big(conversion.amount).abs()
+      fireflyTrans.foreignCurrencyCode = conversion.currency
       // TODO: Store fee/rate
     }
 
     // Use personal finance group as category
-    fireflyTrans.category_name = transaction?.category?.groups?.['personal_finance']?.name ?? null
+    const categoryName = transaction?.category?.groups?.['personal_finance']?.name
+    if (categoryName) fireflyTrans.categoryName = categoryName
     // TODO: Store other categories
 
     return fireflyTrans
