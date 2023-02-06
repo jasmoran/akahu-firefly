@@ -1,16 +1,11 @@
 import knex from 'knex'
 import { firefly } from '../knexfile'
 
-export interface AccountWithNumber {
+export interface Account {
   id: number
   account_type_id: number
-  account_number: string
-}
-
-export interface AccountWithExternalId {
-  id: number
-  account_type_id: number
-  external_id: string
+  account_number: string | null
+  external_id: string | null
 }
 
 export interface Transaction {
@@ -27,29 +22,33 @@ export interface Transaction {
   category_name: string | null
 }
 
-function accountMeta<T> (name: string) {
-  return async function (): Promise<T[]> {
-    const db = knex(firefly)
-    const accounts = await db('accounts')
-      .select('accounts.id', 'accounts.account_type_id', 'account_meta.data')
-      .innerJoin('account_meta', 'accounts.id', 'account_meta.account_id')
-      .whereNull('accounts.deleted_at')
-      .andWhere('account_meta.name', name)
-
-    accounts.forEach(account => {
-      account[name] = JSON.parse(account.data)
-      delete account.data
+// Fetch all accounts
+export async function accounts (): Promise<Account[]> {
+  const db = knex(firefly)
+  const accounts = await db('accounts AS acc')
+    .select(
+      'acc.id',
+      'acc.account_type_id',
+      'num.data AS account_number',
+      'ext.data AS external_id'
+    )
+    .leftJoin('account_meta AS num', function () {
+      this.on('acc.id', 'num.account_id')
+        .andOnVal('num.name', 'account_number')
     })
+    .leftJoin('account_meta AS ext', function () {
+      this.on('acc.id', 'ext.account_id')
+        .andOnVal('ext.name', 'external_id')
+    })
+    .whereNull('acc.deleted_at')
 
-    return accounts
-  }
+  accounts.forEach(account => {
+    account.account_number = JSON.parse(account.account_number)
+    account.external_id = JSON.parse(account.external_id)
+  })
+
+  return accounts
 }
-
-// Fetch all accounts that have an account_number loaded
-export const accountsWithNumber = accountMeta<AccountWithNumber>('account_number')
-
-// Fetch all accounts that have an external_id loaded
-export const accountsWithExternalId = accountMeta<AccountWithExternalId>('external_id')
 
 // Fetch all transactions
 export async function transactions (): Promise<Transaction[]> {

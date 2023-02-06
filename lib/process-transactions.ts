@@ -71,59 +71,60 @@ export class ProcessTransactions {
   }
 
   private static async processFireflyBankAccounts (): Promise<Record<string, AccountPair>> {
-    const accounts = await firefly.accountsWithNumber()
+    const accounts = await firefly.accounts()
     const grouped: Record<string, AccountPair> = {}
 
-    accounts
-      .filter(account => /\d+-\d+-\d+-\d+/.test(account.account_number))
-      .forEach(account => {
-        const bankAccountNumber = this.formatBankNumber(account.account_number)
-        const accountPair: AccountPair = grouped[bankAccountNumber] ?? { expense: undefined, revenue: undefined }
+    accounts.forEach(account => {
+      if (account.account_number === null || !/\d+-\d+-\d+-\d+/.test(account.account_number)) return
 
-        // Expense account
-        if (account.account_type_id === 4) {
-          accountPair.expense ??= account.id
+      const bankAccountNumber = this.formatBankNumber(account.account_number)
+      const accountPair: AccountPair = grouped[bankAccountNumber] ?? { expense: undefined, revenue: undefined }
 
-        // Revenue account
-        } else if (account.account_type_id === 5) {
-          accountPair.revenue ??= account.id
+      // Expense account
+      if (account.account_type_id === 4) {
+        accountPair.expense ??= account.id
 
-        // User owned account (always use these accounts if they exist)
-        } else {
-          accountPair.expense = account.id
-          accountPair.revenue = account.id
-        }
+      // Revenue account
+      } else if (account.account_type_id === 5) {
+        accountPair.revenue ??= account.id
 
-        grouped[bankAccountNumber] = accountPair
-      })
+      // User owned account (always use these accounts if they exist)
+      } else {
+        accountPair.expense = account.id
+        accountPair.revenue = account.id
+      }
+
+      grouped[bankAccountNumber] = accountPair
+    })
 
     return grouped
   }
 
   private static async processFireflyExternalIds (): Promise<Record<string, AccountPair>> {
-    const accounts = await firefly.accountsWithExternalId()
+    const accounts = await firefly.accounts()
     const grouped: Record<string, AccountPair> = {}
 
-    accounts
-      .forEach(account => {
-        const accountPair: AccountPair = grouped[account.external_id] ?? { expense: undefined, revenue: undefined }
+    accounts.forEach(account => {
+      if (account.external_id === null) return
 
-        // Expense account
-        if (account.account_type_id === 4) {
-          accountPair.expense ??= account.id
+      const accountPair: AccountPair = grouped[account.external_id] ?? { expense: undefined, revenue: undefined }
 
-        // Revenue account
-        } else if (account.account_type_id === 5) {
-          accountPair.revenue ??= account.id
+      // Expense account
+      if (account.account_type_id === 4) {
+        accountPair.expense ??= account.id
 
-        // User owned account (always use these accounts if they exist)
-        } else {
-          accountPair.expense = account.id
-          accountPair.revenue = account.id
-        }
+      // Revenue account
+      } else if (account.account_type_id === 5) {
+        accountPair.revenue ??= account.id
 
-        grouped[account.external_id] = accountPair
-      })
+      // User owned account (always use these accounts if they exist)
+      } else {
+        accountPair.expense = account.id
+        accountPair.revenue = account.id
+      }
+
+      grouped[account.external_id] = accountPair
+    })
 
     return grouped
   }
