@@ -1,9 +1,25 @@
 import knex from 'knex'
 import { firefly } from '../knexfile'
 
+export enum AccountType {
+  Default = 'Default account',
+  Cash = 'Cash account',
+  Asset = 'Asset account',
+  Expense = 'Expense account',
+  Revenue = 'Revenue account',
+  InitialBalance = 'Initial balance account',
+  Beneficiary = 'Beneficiary account',
+  Import = 'Import account',
+  Loan = 'Loan',
+  Reconciliation = 'Reconciliation account',
+  Debt = 'Debt',
+  Mortgage = 'Mortgage',
+  LiabilityCredit = 'Liability credit account'
+}
+
 export interface Account {
   id: number
-  account_type_id: number
+  type: AccountType
   account_number: string | null
   external_id: string | null
 }
@@ -28,7 +44,7 @@ export async function accounts (): Promise<Account[]> {
   const accounts = await db('accounts AS acc')
     .select(
       'acc.id',
-      'acc.account_type_id',
+      'at.type',
       'num.data AS account_number',
       'ext.data AS external_id'
     )
@@ -40,6 +56,7 @@ export async function accounts (): Promise<Account[]> {
       this.on('acc.id', 'ext.account_id')
         .andOnVal('ext.name', 'external_id')
     })
+    .leftJoin('account_types AS at', 'acc.account_type_id', 'at.id')
     .whereNull('acc.deleted_at')
 
   accounts.forEach(account => {

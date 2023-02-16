@@ -77,11 +77,11 @@ export class ProcessTransactions {
       const accountPair: AccountPair = grouped[bankAccountNumber] ?? { expense: undefined, revenue: undefined }
 
       // Expense account
-      if (account.account_type_id === 4) {
+      if (account.type === firefly.AccountType.Expense) {
         accountPair.expense ??= account.id
 
       // Revenue account
-      } else if (account.account_type_id === 5) {
+      } else if (account.type === firefly.AccountType.Revenue) {
         accountPair.revenue ??= account.id
 
       // User owned account (always use these accounts if they exist)
@@ -106,11 +106,11 @@ export class ProcessTransactions {
       const accountPair: AccountPair = grouped[account.external_id] ?? { expense: undefined, revenue: undefined }
 
       // Expense account
-      if (account.account_type_id === 4) {
+      if (account.type === firefly.AccountType.Expense) {
         accountPair.expense ??= account.id
 
       // Revenue account
-      } else if (account.account_type_id === 5) {
+      } else if (account.type === firefly.AccountType.Revenue) {
         accountPair.revenue ??= account.id
 
       // User owned account (always use these accounts if they exist)
