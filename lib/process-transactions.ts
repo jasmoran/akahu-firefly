@@ -1,6 +1,7 @@
 import type { EnrichedTransaction } from 'akahu'
 import Big from 'big.js'
 import * as firefly from './firefly'
+import { Transactions } from './transactions'
 
 interface CurrencyConversion {
   currency: string
@@ -33,28 +34,23 @@ export class ProcessTransactions {
   accountsByBankNumber: Record<string, AccountPair>
   accountsByExternalId: Record<string, AccountPair>
 
-  transactions: Transaction[]
-  transactionsByAkahuId: Record<string, Transaction>
+  transactions: Transactions
 
   private constructor (
     accountsByBankNumber: Record<string, AccountPair>,
-    accountsByExternalId: Record<string, AccountPair>,
-    transactions: Transaction[],
-    transactionsByAkahuId: Record<string, Transaction>
+    accountsByExternalId: Record<string, AccountPair>
   ) {
     this.accountsByBankNumber = accountsByBankNumber
     this.accountsByExternalId = accountsByExternalId
-    this.transactions = transactions
-    this.transactionsByAkahuId = transactionsByAkahuId
+    this.transactions = new Transactions()
   }
 
   public static async build (): Promise<ProcessTransactions> {
-    const [bankAccounts, accountIds, [transactions, transactionsByAkahuId]] = await Promise.all([
+    const [bankAccounts, accountIds] = await Promise.all([
       this.processFireflyBankAccounts(),
-      this.processFireflyExternalIds(),
-      this.processFireflyTransactions()
+      this.processFireflyExternalIds()
     ])
-    return new ProcessTransactions(bankAccounts, accountIds, transactions, transactionsByAkahuId)
+    return new ProcessTransactions(bankAccounts, accountIds)
   }
 
   // Formats a bank account string:
@@ -129,51 +125,6 @@ export class ProcessTransactions {
     return grouped
   }
 
-  private static async processFireflyTransactions (): Promise<[Transaction[], Record<string, Transaction>]> {
-    const fireflyTransactions = await firefly.transactions()
-    const transactionsByAkahuId: Record<string, Transaction> = {}
-
-    // Process each Firefly transaction
-    const transactions = fireflyTransactions.map(fireflyTransaction => {
-      // Split comma seperated external IDs into an array
-      // Array should be empty if external ID is empty or null
-      const externalId = fireflyTransaction.external_id ?? ''
-      const externalIds = externalId.length === 0 ? [] : externalId.split(',')
-      const akahuIds = externalIds.filter(id => id.startsWith('trans_'))
-
-      // Create Transaction from Firefly data
-      const transaction: Transaction = {
-        id: fireflyTransaction.id,
-        type: fireflyTransaction.type,
-        description: fireflyTransaction.description,
-        date: fireflyTransaction.date,
-        amount: Big(fireflyTransaction.amount),
-        sourceId: fireflyTransaction.source_id,
-        destinationId: fireflyTransaction.destination_id,
-        akahuIds
-      }
-
-      // Add optional values
-      if (fireflyTransaction.foreign_amount) transaction.foreignAmount = Big(fireflyTransaction.foreign_amount)
-      if (fireflyTransaction.foreign_currency_code) transaction.foreignCurrencyCode = fireflyTransaction.foreign_currency_code
-      if (fireflyTransaction.category_name) transaction.categoryName = fireflyTransaction.category_name
-
-      // Add transaction to transactionsByAkahuId
-      akahuIds.forEach(externalId => {
-        const existing = transactionsByAkahuId[externalId]
-        if (existing === undefined) {
-          transactionsByAkahuId[externalId] = transaction
-        } else {
-          console.error(`External ID ${externalId} duplicated in ${existing.id} and ${fireflyTransaction.id}`)
-        }
-      })
-
-      return transaction
-    })
-
-    return [transactions, transactionsByAkahuId]
-  }
-
   private lookupAkahuAccountId (akahuAccountId: string): AccountPair {
     return this.accountsByExternalId[akahuAccountId] ?? { expense: undefined, revenue: undefined }
   }
@@ -186,7 +137,7 @@ export class ProcessTransactions {
     return this.accountsByBankNumber[bankAccountNumber] ?? { expense: undefined, revenue: undefined }
   }
 
-  private akahuToFirefly (transaction: EnrichedTransaction): Transaction {
+  public akahuToFirefly (transaction: EnrichedTransaction): Transaction {
     // TODO:
     // transaction.meta.reference
     // transaction.meta.particulars
@@ -230,17 +181,26 @@ export class ProcessTransactions {
 
     // Use personal finance group as category
     const categoryName = transaction?.category?.groups?.['personal_finance']?.name
-    if (categoryName) fireflyTrans.categoryName = categoryName
+    if (categoryName !== undefined) fireflyTrans.categoryName = categoryName
     // TODO: Store other categories
 
     return fireflyTrans
   }
 
-  public processTransactions (transactions: EnrichedTransaction[]): Transaction[] {
-    const processed = transactions.map(transaction => {
-      return this.akahuToFirefly(transaction)
+  public async processTransactions (transactions: EnrichedTransaction[]): Promise<void> {
+    this.lookupBankAccountNumber('hi')
+    await this.transactions.importFromFirefly()
+
+    transactions.forEach(transaction => {
+      const existingTransaction = this.transactions.getByAkahuId(transaction._id)
+      const convertedTransaction = this.akahuToFirefly(transaction)
+      if (existingTransaction !== undefined) {
+        // existingTransaction.description = convertedTransaction.description
+        existingTransaction.amount = convertedTransaction.amount
+        this.transactions.save(existingTransaction)
+      }
     })
 
-    return processed
+    this.transactions.changes()
   }
 }
