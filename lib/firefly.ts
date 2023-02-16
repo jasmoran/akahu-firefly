@@ -20,6 +20,7 @@ export enum AccountType {
 export interface Account {
   id: number
   type: AccountType
+  name: string
   account_number: string | null
   external_id: string | null
 }
@@ -45,6 +46,7 @@ export async function accounts (): Promise<Account[]> {
     .select(
       'acc.id',
       'at.type',
+      'acc.name',
       'num.data AS account_number',
       'ext.data AS external_id'
     )
