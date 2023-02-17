@@ -93,7 +93,6 @@ export class Accounts {
   }
 
   private add (account: Account): void {
-    if (account.akahuId !== undefined) console.log(account)
     // Add account to accountsByFireflyId
     const existing = this.accountsByFireflyId.get(account.fireflyId)
     if (existing === undefined) {
