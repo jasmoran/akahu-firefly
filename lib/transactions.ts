@@ -139,14 +139,14 @@ export class Transactions {
     }
 
     // Remove transaction from transactionsByFireflyId
-    this.transactionsByFireflyId.delete(transaction.fireflyId)
+    this.transactionsByFireflyId.delete(existing.fireflyId)
 
     // Remove transaction from transactionsByAkahuId
-    if (transaction.akahuId !== undefined) {
-      this.transactionsByAkahuId.delete(transaction.akahuId)
+    if (existing.akahuId !== undefined) {
+      this.transactionsByAkahuId.delete(existing.akahuId)
     }
-    if (transaction.type === TransactionType.Transfer && transaction.otherAkahuId !== undefined) {
-      this.transactionsByAkahuId.delete(transaction.otherAkahuId)
+    if (existing.type === TransactionType.Transfer && existing.otherAkahuId !== undefined) {
+      this.transactionsByAkahuId.delete(existing.otherAkahuId)
     }
 
     // Re-add transaction
