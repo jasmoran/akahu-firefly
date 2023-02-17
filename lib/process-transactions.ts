@@ -1,6 +1,6 @@
 import type { EnrichedTransaction } from 'akahu'
 import Big from 'big.js'
-import { Accounts } from './accounts'
+import { Account, Accounts, AccountType } from './accounts'
 import { Transaction, Transactions, TransactionType } from './transactions'
 
 interface CurrencyConversion {
@@ -21,10 +21,8 @@ export class ProcessTransactions {
 
   public static async build (): Promise<ProcessTransactions> {
     const processor = new ProcessTransactions()
-    await Promise.all([
-      processor.accounts.importFromFirefly(),
-      processor.transactions.importFromFirefly()
-    ])
+    await processor.accounts.importFromFirefly()
+    await processor.transactions.importFromFirefly(processor.accounts)
     return processor
   }
 
@@ -38,17 +36,28 @@ export class ProcessTransactions {
     // transaction.merchant
 
     // Look up Akahu Account ID (acc_xxxxx)
-    const account = this.accounts.getByAkahuId(transaction._account)
+    const accountSet = this.accounts.getByAkahuId(transaction._account)
+    if (accountSet === undefined) throw Error(`Akahu account ${transaction._account} not set up in Firefly`)
+    const account = accountSet.asset ?? accountSet.liability
+    if (account === undefined) throw Error(`User's account ${transaction._account} not configured as an asset or liability`)
 
-    let type, sourceId, destinationId
+    const dummyAccount: Account = {
+      fireflyId: 0,
+      akahuId: undefined,
+      name: '',
+      type: AccountType.Expense,
+      bankNumbers: new Set()
+    }
+
+    let type, source: Account, destination
     if (transaction.amount < 0) {
       type = TransactionType.Withdrawal
-      sourceId = account?.asset?.fireflyId ?? 0
-      destinationId = 0 // TODO - expense account
+      source = account
+      destination = dummyAccount // TODO - expense account
     } else {
       type = TransactionType.Deposit
-      sourceId = 0 // TODO - revenue account
-      destinationId = account?.asset?.fireflyId ?? 0
+      source = dummyAccount // TODO - revenue account
+      destination = account
     }
 
     if (type === TransactionType.Transfer) throw Error('Impossible')
@@ -57,8 +66,8 @@ export class ProcessTransactions {
       fireflyId: 0,
       akahuId: transaction._id,
       type,
-      sourceId,
-      destinationId,
+      source,
+      destination,
       date: new Date(transaction.date),
       amount: Big(transaction.amount).abs(),
       description: transaction.description

@@ -1,4 +1,5 @@
 import Big from 'big.js'
+import type { Account, Accounts } from './accounts'
 import * as firefly from './firefly'
 
 // List transaction types
@@ -18,8 +19,8 @@ interface TransactionCommon {
   description: string
   date: Date
   amount: Big
-  sourceId: number
-  destinationId: number
+  source: Account
+  destination: Account
   foreignAmount?: Big
   foreignCurrencyCode?: string
   categoryName?: string
@@ -37,7 +38,7 @@ export class Transactions {
   // Track modifications
   private readonly originalTransactions: Map<number, Transaction> = new Map()
 
-  public async importFromFirefly (): Promise<void> {
+  public async importFromFirefly (accounts: Accounts): Promise<void> {
     const fireflyTransactions = await firefly.transactions()
 
     // Process each Firefly transaction
@@ -51,13 +52,20 @@ export class Transactions {
       const externalIds = externalId.length === 0 ? [] : externalId.split(',')
       const akahuIds = externalIds.filter(id => id.startsWith('trans_'))
 
+      const source = accounts.getByFireflyId(fireflyTransaction.source_id)
+      const destination = accounts.getByFireflyId(fireflyTransaction.destination_id)
+
+      // Confirm source and destination account exist
+      // This should be enforced by a foreign key in the database
+      if (source === undefined || destination === undefined) throw Error("Source or desination account doesn't exist")
+
       const common: TransactionCommon = {
         fireflyId: fireflyTransaction.id,
         description: fireflyTransaction.description,
         date: fireflyTransaction.date,
         amount: Big(fireflyTransaction.amount),
-        sourceId: fireflyTransaction.source_id,
-        destinationId: fireflyTransaction.destination_id,
+        source,
+        destination,
         akahuId: akahuIds[0]
       }
 

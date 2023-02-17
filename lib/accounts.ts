@@ -1,7 +1,7 @@
 import * as firefly from './firefly'
 
 // List account types
-enum AccountType {
+export enum AccountType {
   Asset = 'asset',
   Liability = 'liability',
   Expense = 'expense',
