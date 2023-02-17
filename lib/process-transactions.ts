@@ -1,27 +1,13 @@
 import type { EnrichedTransaction } from 'akahu'
 import Big from 'big.js'
 import { Accounts } from './accounts'
-import { Transactions } from './transactions'
+import { Transaction, Transactions, TransactionType } from './transactions'
 
 interface CurrencyConversion {
   currency: string
   amount: number
   rate: number
   fee?: number
-}
-
-interface Transaction {
-  id: number
-  type: string
-  description: string
-  date: Date
-  amount: Big
-  sourceId: number
-  destinationId: number
-  foreignAmount?: Big
-  foreignCurrencyCode?: string
-  categoryName?: string
-  akahuIds: string[]
 }
 
 export class ProcessTransactions {
@@ -56,24 +42,26 @@ export class ProcessTransactions {
 
     let type, sourceId, destinationId
     if (transaction.amount < 0) {
-      type = 'Withdrawal'
+      type = TransactionType.Withdrawal
       sourceId = account?.asset?.fireflyId ?? 0
       destinationId = 0 // TODO - expense account
     } else {
-      type = 'Deposit'
+      type = TransactionType.Deposit
       sourceId = 0 // TODO - revenue account
       destinationId = account?.asset?.fireflyId ?? 0
     }
 
+    if (type === TransactionType.Transfer) throw Error('Impossible')
+
     const fireflyTrans: Transaction = {
-      id: 0,
+      fireflyId: 0,
+      akahuId: transaction._id,
       type,
       sourceId,
       destinationId,
       date: new Date(transaction.date),
       amount: Big(transaction.amount).abs(),
-      description: transaction.description,
-      akahuIds: [transaction._id]
+      description: transaction.description
     }
 
     // Add foreign currency details if any available

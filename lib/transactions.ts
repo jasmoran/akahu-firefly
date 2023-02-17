@@ -2,7 +2,7 @@ import Big from 'big.js'
 import * as firefly from './firefly'
 
 // List transaction types
-enum TransactionType {
+export enum TransactionType {
   Withdrawal = 'Withdrawal',
   Deposit = 'Deposit',
   OpeningBalance = 'Opening balance',
