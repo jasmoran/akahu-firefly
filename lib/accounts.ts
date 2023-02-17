@@ -155,7 +155,8 @@ export class Accounts {
   }
 
   public getByBankNumber (bankNumber: string): AccountSet | undefined {
-    return this.cloneSet(this.accountsByBankNumber.get(bankNumber))
+    const formatted = this.formatBankNumber(bankNumber)
+    return this.cloneSet(this.accountsByBankNumber.get(formatted))
   }
 
   // TODO: Implement this properly using the Firefly API
