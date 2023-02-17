@@ -21,6 +21,7 @@ export interface Account {
   id: number
   type: AccountType
   name: string
+  iban: string | null
   account_number: string | null
   external_id: string | null
 }
@@ -47,6 +48,7 @@ export async function accounts (): Promise<Account[]> {
       'acc.id',
       'at.type',
       'acc.name',
+      'acc.iban',
       'num.data AS account_number',
       'ext.data AS external_id'
     )

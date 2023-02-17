@@ -64,8 +64,9 @@ export class Accounts {
 
       // Fetch Akahu ID
       let akahuId
-      if (fireflyAccount.external_id !== null && /^(acc|merchant)_/.test(fireflyAccount.external_id)) {
-        akahuId = fireflyAccount.external_id
+      const externalId = fireflyAccount.external_id ?? fireflyAccount.iban
+      if (externalId !== null && /^(acc|merchant)_/.test(externalId)) {
+        akahuId = externalId
       }
 
       // Create Account from Firefly data
