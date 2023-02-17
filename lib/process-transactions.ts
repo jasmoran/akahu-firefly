@@ -1,4 +1,4 @@
-import type { EnrichedTransaction } from 'akahu'
+import type { Transaction as AkahuTransaction } from 'akahu'
 import Big from 'big.js'
 import { Account, Accounts, AccountType } from './accounts'
 import { Transaction, Transactions, TransactionType } from './transactions'
@@ -26,7 +26,7 @@ export class ProcessTransactions {
     return processor
   }
 
-  public akahuToFirefly (transaction: EnrichedTransaction): Transaction {
+  public akahuToFirefly (transaction: AkahuTransaction): Transaction {
     // TODO:
     // transaction.meta.reference
     // transaction.meta.particulars
@@ -74,22 +74,26 @@ export class ProcessTransactions {
     }
 
     // Add foreign currency details if any available
-    const conversion: CurrencyConversion | undefined = (transaction.meta.conversion as unknown) as CurrencyConversion | undefined
-    if (conversion !== undefined) {
-      fireflyTrans.foreignAmount = Big(conversion.amount).abs()
-      fireflyTrans.foreignCurrencyCode = conversion.currency
-      // TODO: Store fee/rate
+    if ('meta' in transaction) {
+      const conversion: CurrencyConversion | undefined = (transaction.meta.conversion as unknown) as CurrencyConversion | undefined
+      if (conversion !== undefined) {
+        fireflyTrans.foreignAmount = Big(conversion.amount).abs()
+        fireflyTrans.foreignCurrencyCode = conversion.currency
+        // TODO: Store fee/rate
+      }
     }
 
     // Use personal finance group as category
-    const categoryName = transaction?.category?.groups?.['personal_finance']?.name
-    if (categoryName !== undefined) fireflyTrans.categoryName = categoryName
-    // TODO: Store other categories
+    if ('category' in transaction) {
+      const categoryName = transaction.category.groups?.['personal_finance']?.name
+      if (categoryName !== undefined) fireflyTrans.categoryName = categoryName
+      // TODO: Store other categories
+    }
 
     return fireflyTrans
   }
 
-  public processTransactions (transactions: EnrichedTransaction[]): void {
+  public processTransactions (transactions: AkahuTransaction[]): void {
     transactions.forEach(transaction => {
       const existingTransaction = this.transactions.getByAkahuId(transaction._id)
       const convertedTransaction = this.akahuToFirefly(transaction)
