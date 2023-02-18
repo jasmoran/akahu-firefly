@@ -1,3 +1,4 @@
+import { compareTwoStrings } from 'string-similarity'
 import * as firefly from './firefly'
 
 // List account types
@@ -196,6 +197,25 @@ export class Accounts {
 
   public getByName (name: string): AccountSet | undefined {
     return this.cloneSet(this.accountsByName.get(this.normalizeName(name)))
+  }
+
+  public getByNameFuzzy (source: string): [AccountSet | undefined, number] {
+    let bestMatch
+    let bestRating = 0
+
+    // Do a case-insensitive compare by lowering case
+    source = this.normalizeName(source)
+
+    // Loop through all name-account pairs and find the best match
+    for (const [name, set] of this.accountsByName.entries()) {
+      const rating = compareTwoStrings(source, name)
+      if (rating > bestRating) {
+        bestMatch = set
+        bestRating = rating
+      }
+    }
+
+    return [bestMatch, bestRating]
   }
 
   // TODO: Implement this properly using the Firefly API
