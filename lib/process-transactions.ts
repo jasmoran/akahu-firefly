@@ -46,7 +46,8 @@ export class ProcessTransactions {
       akahuId: undefined,
       name: '',
       type: AccountType.Expense,
-      bankNumbers: new Set()
+      bankNumbers: new Set(),
+      alternateNames: []
     }
 
     let type, source: Account, destination

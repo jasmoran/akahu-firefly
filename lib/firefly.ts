@@ -24,6 +24,7 @@ export interface Account {
   iban: string | null
   account_number: string | null
   external_id: string | null
+  notes: string | null
 }
 
 export interface Transaction {
@@ -50,7 +51,8 @@ export async function accounts (): Promise<Account[]> {
       'acc.name',
       'acc.iban',
       'num.data AS account_number',
-      'ext.data AS external_id'
+      'ext.data AS external_id',
+      'notes.text AS notes'
     )
     .leftJoin('account_meta AS num', function () {
       this.on('acc.id', 'num.account_id')
@@ -59,6 +61,11 @@ export async function accounts (): Promise<Account[]> {
     .leftJoin('account_meta AS ext', function () {
       this.on('acc.id', 'ext.account_id')
         .andOnVal('ext.name', 'external_id')
+    })
+    .leftJoin('notes', function () {
+      this.on('acc.id', 'notes.noteable_id')
+        .andOnVal('notes.noteable_type', 'FireflyIII\\Models\\Account')
+        .andOnNull('notes.deleted_at')
     })
     .leftJoin('account_types AS at', 'acc.account_type_id', 'at.id')
     .whereNull('acc.deleted_at')

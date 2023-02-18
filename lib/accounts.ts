@@ -30,6 +30,7 @@ export interface Account {
   name: string
   type: AccountType
   bankNumbers: Set<string>
+  alternateNames: string[]
 }
 
 export class Accounts {
@@ -75,7 +76,8 @@ export class Accounts {
         akahuId,
         name: fireflyAccount.name,
         type: accountType,
-        bankNumbers: new Set()
+        bankNumbers: new Set(),
+        alternateNames: []
       }
 
       // Add bank account numbers
@@ -86,6 +88,19 @@ export class Accounts {
             account.bankNumbers.add(this.formatBankNumber(number))
           }
         })
+      }
+
+      // Add alternate names
+      if (fireflyAccount.notes !== null) {
+        fireflyAccount
+          .notes
+          .match(/\*\*Alternate names\*\*(\n-\s*`[^`]+`)+/g)
+          ?.[0]
+          ?.split('\n')
+          ?.forEach(line => {
+            const name = line.match(/`([^`]+)`/)?.[1]
+            if (name !== undefined) account.alternateNames.push(name)
+          })
       }
 
       this.add(account)
