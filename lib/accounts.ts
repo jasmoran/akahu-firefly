@@ -37,6 +37,7 @@ export class Accounts {
   private readonly accountsByFireflyId: Map<number, Account> = new Map()
   private readonly accountsByAkahuId: Map<string, AccountSet> = new Map()
   private readonly accountsByBankNumber: Map<string, AccountSet> = new Map()
+  private readonly accountsByName: Map<string, AccountSet> = new Map()
 
   // Track modifications
   private readonly originalAccounts: Map<number, Account> = new Map()
@@ -74,7 +75,7 @@ export class Accounts {
       const account: Account = {
         fireflyId: fireflyAccount.id,
         akahuId,
-        name: fireflyAccount.name,
+        name: fireflyAccount.name.trim(),
         type: accountType,
         bankNumbers: new Set(),
         alternateNames: []
@@ -128,6 +129,18 @@ export class Accounts {
       }
     }
 
+    // Add account to accountsByName (both main and alternate names)
+    [account.name, ...account.alternateNames].forEach(name => {
+      name = this.normalizeName(name)
+      const set = this.accountsByName.get(name) ?? {}
+      if (set[account.type] === undefined) {
+        set[account.type] = account
+        this.accountsByName.set(name, set)
+      } else {
+        console.error(`Account name ${name} duplicated in ${JSON.stringify(set)} and ${JSON.stringify(account)}`)
+      }
+    })
+
     // Add account to accountsByBankNumber
     account.bankNumbers.forEach(bankNumber => {
       const set = this.accountsByBankNumber.get(bankNumber) ?? {}
@@ -174,6 +187,17 @@ export class Accounts {
     return this.cloneSet(this.accountsByBankNumber.get(formatted))
   }
 
+  private normalizeName (name: string): string {
+    return name.normalize('NFD')
+      .replace(/\p{Diacritic}/gu, '')
+      .toLowerCase()
+      .trim()
+  }
+
+  public getByName (name: string): AccountSet | undefined {
+    return this.cloneSet(this.accountsByName.get(this.normalizeName(name)))
+  }
+
   // TODO: Implement this properly using the Firefly API
   public save (account: Account): void {
     // Check if the Firefly ID exists
@@ -190,6 +214,11 @@ export class Accounts {
     if (existing.akahuId !== undefined) {
       this.accountsByAkahuId.delete(existing.akahuId)
     }
+
+    // Remove account from accountsByName
+    [existing.name, ...account.alternateNames].forEach(name => {
+      this.accountsByName.delete(this.normalizeName(name))
+    })
 
     // Remove account from accountsByBankNumber
     account.bankNumbers.forEach(bankNumber => {
