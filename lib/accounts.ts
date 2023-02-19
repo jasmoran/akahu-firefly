@@ -25,7 +25,8 @@ const TypeMapping: { [K in firefly.AccountType]?: AccountType } = {
 }
 
 export interface Account {
-  fireflyId: number
+  id: number
+  fireflyId: number | undefined
   akahuId: string | undefined
   name: string
   type: AccountType
@@ -34,6 +35,8 @@ export interface Account {
 }
 
 export class Accounts {
+  private counter = 0
+  private readonly accountsById: Map<number, Account> = new Map()
   private readonly accountsByFireflyId: Map<number, Account> = new Map()
   private readonly accountsByAkahuId: Map<string, AccountSet> = new Map()
   private readonly accountsByBankNumber: Map<string, AccountSet> = new Map()
@@ -73,12 +76,12 @@ export class Accounts {
 
       // Create Account from Firefly data
       const name = fireflyAccount.name.trim()
-      const account: Account = {
+      const account = {
         fireflyId: fireflyAccount.id,
         akahuId,
         name,
         type: accountType,
-        bankNumbers: new Set(),
+        bankNumbers: new Set<string>(),
         alternateNames: new Set([name])
       }
 
@@ -105,18 +108,20 @@ export class Accounts {
           })
       }
 
-      this.add(account)
-      this.originalAccounts.set(account.fireflyId, { ...account })
+      const createdAccount = this.create(account)
+      this.originalAccounts.set(createdAccount.id, { ...createdAccount })
     })
   }
 
   private add (account: Account): void {
     // Add account to accountsByFireflyId
-    const existing = this.accountsByFireflyId.get(account.fireflyId)
-    if (existing === undefined) {
-      this.accountsByFireflyId.set(account.fireflyId, account)
-    } else {
-      console.error(`Firefly account ID ${account.fireflyId} duplicated in ${JSON.stringify(existing)} and ${JSON.stringify(account)}`)
+    if (account.fireflyId !== undefined) {
+      const existing = this.accountsByFireflyId.get(account.fireflyId)
+      if (existing === undefined) {
+        this.accountsByFireflyId.set(account.fireflyId, account)
+      } else {
+        console.error(`Firefly account ID ${account.fireflyId} duplicated in ${JSON.stringify(existing)} and ${JSON.stringify(account)}`)
+      }
     }
 
     // Add account to accountsByAkahuId
@@ -220,15 +225,17 @@ export class Accounts {
 
   // TODO: Implement this properly using the Firefly API
   public save (account: Account): void {
-    // Check if the Firefly ID exists
-    const existing = this.accountsByFireflyId.get(account.fireflyId)
+    // Check if the ID exists
+    const existing = this.accountsById.get(account.id)
     if (existing === undefined) {
-      console.error(`Firefly account ID ${account.fireflyId} doesn't exist`)
+      console.error(`Account ID ${account.id} doesn't exist`)
       return
     }
 
     // Remove account from accountsByFireflyId
-    this.accountsByFireflyId.delete(existing.fireflyId)
+    if (existing.fireflyId !== undefined) {
+      this.accountsByFireflyId.delete(existing.fireflyId)
+    }
 
     // Remove account from accountsByAkahuId
     if (existing.akahuId !== undefined) {
@@ -249,18 +256,17 @@ export class Accounts {
     this.add(account)
   }
 
-  // TODO: Implement this properly using the Firefly API
-  public create (inputAccount: Omit<Account, 'fireflyId'>): Account {
-    const fireflyId = Math.max(...this.accountsByFireflyId.keys()) + 1
+  public create (inputAccount: Omit<Account, 'id'>): Account {
     const account = inputAccount as Account
-    account.fireflyId = fireflyId
+    account.id = this.counter
+    this.counter++
     this.add(account)
     return account
   }
 
   public changes (): void {
-    this.accountsByFireflyId.forEach((b, fireflyId) => {
-      const diff = this.compare(this.originalAccounts.get(fireflyId), b)
+    this.accountsById.forEach((b, id) => {
+      const diff = this.compare(this.originalAccounts.get(id), b)
       if (diff !== null) console.log(diff)
     })
   }

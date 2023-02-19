@@ -42,6 +42,7 @@ export class ProcessTransactions {
     if (account === undefined) throw Error(`User's account ${transaction._account} not configured as an asset or liability`)
 
     const dummyAccount: Account = {
+      id: 0,
       fireflyId: 0,
       akahuId: undefined,
       name: '',
