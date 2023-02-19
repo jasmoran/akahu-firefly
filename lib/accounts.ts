@@ -36,14 +36,11 @@ export interface Account {
 
 export class Accounts {
   private counter = 0
-  private readonly accounts: Map<number, Account> = new Map()
-  private readonly fireflyIdIndex: Map<number, Account> = new Map()
-  private readonly akahuIdIndex: Map<string, AccountSet> = new Map()
-  private readonly bankNumberIndex: Map<string, AccountSet> = new Map()
-  private readonly nameIndex: Map<string, AccountSet> = new Map()
-
-  // Track modifications
-  private readonly originalAccounts: Map<number, Account> = new Map()
+  private accounts: Map<number, Account> = new Map()
+  private fireflyIdIndex: Map<number, Account> = new Map()
+  private akahuIdIndex: Map<string, AccountSet> = new Map()
+  private bankNumberIndex: Map<string, AccountSet> = new Map()
+  private nameIndex: Map<string, AccountSet> = new Map()
 
   // Formats a bank account string:
   // 2 digit Bank Number
@@ -204,6 +201,10 @@ export class Accounts {
     }
   }
 
+  public get (id: number): Account | undefined {
+    return this.clone(this.accounts.get(id))
+  }
+
   public getByAkahuId (akahuId: string): AccountSet | undefined {
     return this.cloneSet(this.akahuIdIndex.get(akahuId))
   }
@@ -271,9 +272,20 @@ export class Accounts {
     return account
   }
 
-  public changes (): void {
+  public duplicate (): Accounts {
+    const newAccounts = new Accounts()
+    newAccounts.counter = this.counter
+    newAccounts.accounts = this.accounts
+    newAccounts.fireflyIdIndex = this.fireflyIdIndex
+    newAccounts.akahuIdIndex = this.akahuIdIndex
+    newAccounts.bankNumberIndex = this.bankNumberIndex
+    newAccounts.nameIndex = this.nameIndex
+    return newAccounts
+  }
+
+  public changes (other: Accounts): void {
     this.accounts.forEach((b, id) => {
-      const diff = this.compare(this.originalAccounts.get(id), b)
+      const diff = this.compare(other.get(id), b)
       if (diff !== null) console.log(diff)
     })
   }
