@@ -113,7 +113,9 @@ export class Accounts {
     })
   }
 
-  private add (account: Account): void {
+  private index (account: Account): void {
+    this.accountsById.set(account.id, account)
+
     // Add account to accountsByFireflyId
     if (account.fireflyId !== undefined) {
       const existing = this.accountsByFireflyId.get(account.fireflyId)
@@ -156,6 +158,28 @@ export class Accounts {
       } else {
         console.error(`Bank account number ${bankNumber} duplicated in ${JSON.stringify(set)} and ${JSON.stringify(account)}`)
       }
+    })
+  }
+
+  private deindex (account: Account): void {
+    // Remove account from accountsByFireflyId
+    if (account.fireflyId !== undefined) {
+      this.accountsByFireflyId.delete(account.fireflyId)
+    }
+
+    // Remove account from accountsByAkahuId
+    if (account.akahuId !== undefined) {
+      this.accountsByAkahuId.delete(account.akahuId)
+    }
+
+    // Remove account from accountsByName
+    account.alternateNames.forEach(name => {
+      this.accountsByName.delete(this.normalizeName(name))
+    })
+
+    // Remove account from accountsByBankNumber
+    account.bankNumbers.forEach(bankNumber => {
+      this.accountsByBankNumber.delete(bankNumber)
     })
   }
 
@@ -232,35 +256,18 @@ export class Accounts {
       return
     }
 
-    // Remove account from accountsByFireflyId
-    if (existing.fireflyId !== undefined) {
-      this.accountsByFireflyId.delete(existing.fireflyId)
-    }
+    // De-index account
+    this.deindex(existing)
 
-    // Remove account from accountsByAkahuId
-    if (existing.akahuId !== undefined) {
-      this.accountsByAkahuId.delete(existing.akahuId)
-    }
-
-    // Remove account from accountsByName
-    account.alternateNames.forEach(name => {
-      this.accountsByName.delete(this.normalizeName(name))
-    })
-
-    // Remove account from accountsByBankNumber
-    account.bankNumbers.forEach(bankNumber => {
-      this.accountsByBankNumber.delete(bankNumber)
-    })
-
-    // Re-add account
-    this.add(account)
+    // Re-index account
+    this.index(account)
   }
 
   public create (inputAccount: Omit<Account, 'id'>): Account {
     const account = inputAccount as Account
     account.id = this.counter
     this.counter++
-    this.add(account)
+    this.index(account)
     return account
   }
 
