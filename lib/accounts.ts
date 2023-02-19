@@ -21,8 +21,7 @@ const TypeMapping: { [K in firefly.AccountType]?: AccountType } = {
   [firefly.AccountType.Revenue]: AccountType.Revenue,
   [firefly.AccountType.Loan]: AccountType.Liability,
   [firefly.AccountType.Debt]: AccountType.Liability,
-  [firefly.AccountType.Mortgage]: AccountType.Liability,
-  [firefly.AccountType.LiabilityCredit]: AccountType.Liability
+  [firefly.AccountType.Mortgage]: AccountType.Liability
 }
 
 export interface Account {
