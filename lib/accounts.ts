@@ -30,7 +30,7 @@ export interface Account {
   name: string
   type: AccountType
   bankNumbers: Set<string>
-  alternateNames: string[]
+  alternateNames: Set<string>
 }
 
 export class Accounts {
@@ -72,13 +72,14 @@ export class Accounts {
       }
 
       // Create Account from Firefly data
+      const name = fireflyAccount.name.trim()
       const account: Account = {
         fireflyId: fireflyAccount.id,
         akahuId,
-        name: fireflyAccount.name.trim(),
+        name,
         type: accountType,
         bankNumbers: new Set(),
-        alternateNames: []
+        alternateNames: new Set([name])
       }
 
       // Add bank account numbers
@@ -100,7 +101,7 @@ export class Accounts {
           ?.split('\n')
           ?.forEach(line => {
             const name = line.match(/`([^`]+)`/)?.[1]
-            if (name !== undefined) account.alternateNames.push(name)
+            if (name !== undefined) account.alternateNames.add(name)
           })
       }
 
@@ -130,7 +131,7 @@ export class Accounts {
     }
 
     // Add account to accountsByName (both main and alternate names)
-    [account.name, ...account.alternateNames].forEach(name => {
+    account.alternateNames.forEach(name => {
       name = this.normalizeName(name)
       const set = this.accountsByName.get(name) ?? {}
       if (set[account.type] === undefined) {
@@ -235,7 +236,7 @@ export class Accounts {
     }
 
     // Remove account from accountsByName
-    [existing.name, ...account.alternateNames].forEach(name => {
+    account.alternateNames.forEach(name => {
       this.accountsByName.delete(this.normalizeName(name))
     })
 

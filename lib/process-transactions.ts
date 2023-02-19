@@ -47,7 +47,7 @@ export class ProcessTransactions {
       name: '',
       type: AccountType.Expense,
       bankNumbers: new Set(),
-      alternateNames: []
+      alternateNames: new Set()
     }
 
     let type, source: Account, destination
