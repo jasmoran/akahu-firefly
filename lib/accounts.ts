@@ -36,11 +36,11 @@ export interface Account {
 
 export class Accounts {
   private counter = 0
-  private readonly accountsById: Map<number, Account> = new Map()
-  private readonly accountsByFireflyId: Map<number, Account> = new Map()
-  private readonly accountsByAkahuId: Map<string, AccountSet> = new Map()
-  private readonly accountsByBankNumber: Map<string, AccountSet> = new Map()
-  private readonly accountsByName: Map<string, AccountSet> = new Map()
+  private readonly accounts: Map<number, Account> = new Map()
+  private readonly fireflyIdIndex: Map<number, Account> = new Map()
+  private readonly akahuIdIndex: Map<string, AccountSet> = new Map()
+  private readonly bankNumberIndex: Map<string, AccountSet> = new Map()
+  private readonly nameIndex: Map<string, AccountSet> = new Map()
 
   // Track modifications
   private readonly originalAccounts: Map<number, Account> = new Map()
@@ -114,13 +114,13 @@ export class Accounts {
   }
 
   private index (account: Account): void {
-    this.accountsById.set(account.id, account)
+    this.accounts.set(account.id, account)
 
     // Add account to accountsByFireflyId
     if (account.fireflyId !== undefined) {
-      const existing = this.accountsByFireflyId.get(account.fireflyId)
+      const existing = this.fireflyIdIndex.get(account.fireflyId)
       if (existing === undefined) {
-        this.accountsByFireflyId.set(account.fireflyId, account)
+        this.fireflyIdIndex.set(account.fireflyId, account)
       } else {
         console.error(`Firefly account ID ${account.fireflyId} duplicated in ${JSON.stringify(existing)} and ${JSON.stringify(account)}`)
       }
@@ -128,10 +128,10 @@ export class Accounts {
 
     // Add account to accountsByAkahuId
     if (account.akahuId !== undefined) {
-      const set = this.accountsByAkahuId.get(account.akahuId) ?? {}
+      const set = this.akahuIdIndex.get(account.akahuId) ?? {}
       if (set[account.type] === undefined) {
         set[account.type] = account
-        this.accountsByAkahuId.set(account.akahuId, set)
+        this.akahuIdIndex.set(account.akahuId, set)
       } else {
         console.error(`Akahu account ID ${account.akahuId} duplicated in ${JSON.stringify(set)} and ${JSON.stringify(account)}`)
       }
@@ -140,10 +140,10 @@ export class Accounts {
     // Add account to accountsByName (both main and alternate names)
     account.alternateNames.forEach(name => {
       name = this.normalizeName(name)
-      const set = this.accountsByName.get(name) ?? {}
+      const set = this.nameIndex.get(name) ?? {}
       if (set[account.type] === undefined) {
         set[account.type] = account
-        this.accountsByName.set(name, set)
+        this.nameIndex.set(name, set)
       } else {
         console.error(`Account name ${name} duplicated in ${JSON.stringify(set)} and ${JSON.stringify(account)}`)
       }
@@ -151,10 +151,10 @@ export class Accounts {
 
     // Add account to accountsByBankNumber
     account.bankNumbers.forEach(bankNumber => {
-      const set = this.accountsByBankNumber.get(bankNumber) ?? {}
+      const set = this.bankNumberIndex.get(bankNumber) ?? {}
       if (set[account.type] === undefined) {
         set[account.type] = account
-        this.accountsByBankNumber.set(bankNumber, set)
+        this.bankNumberIndex.set(bankNumber, set)
       } else {
         console.error(`Bank account number ${bankNumber} duplicated in ${JSON.stringify(set)} and ${JSON.stringify(account)}`)
       }
@@ -164,22 +164,22 @@ export class Accounts {
   private deindex (account: Account): void {
     // Remove account from accountsByFireflyId
     if (account.fireflyId !== undefined) {
-      this.accountsByFireflyId.delete(account.fireflyId)
+      this.fireflyIdIndex.delete(account.fireflyId)
     }
 
     // Remove account from accountsByAkahuId
     if (account.akahuId !== undefined) {
-      this.accountsByAkahuId.delete(account.akahuId)
+      this.akahuIdIndex.delete(account.akahuId)
     }
 
     // Remove account from accountsByName
     account.alternateNames.forEach(name => {
-      this.accountsByName.delete(this.normalizeName(name))
+      this.nameIndex.delete(this.normalizeName(name))
     })
 
     // Remove account from accountsByBankNumber
     account.bankNumbers.forEach(bankNumber => {
-      this.accountsByBankNumber.delete(bankNumber)
+      this.bankNumberIndex.delete(bankNumber)
     })
   }
 
@@ -205,16 +205,16 @@ export class Accounts {
   }
 
   public getByAkahuId (akahuId: string): AccountSet | undefined {
-    return this.cloneSet(this.accountsByAkahuId.get(akahuId))
+    return this.cloneSet(this.akahuIdIndex.get(akahuId))
   }
 
   public getByFireflyId (fireflyId: number): Account | undefined {
-    return this.clone(this.accountsByFireflyId.get(fireflyId))
+    return this.clone(this.fireflyIdIndex.get(fireflyId))
   }
 
   public getByBankNumber (bankNumber: string): AccountSet | undefined {
     const formatted = this.formatBankNumber(bankNumber)
-    return this.cloneSet(this.accountsByBankNumber.get(formatted))
+    return this.cloneSet(this.bankNumberIndex.get(formatted))
   }
 
   private normalizeName (name: string): string {
@@ -225,7 +225,7 @@ export class Accounts {
   }
 
   public getByName (name: string): AccountSet | undefined {
-    return this.cloneSet(this.accountsByName.get(this.normalizeName(name)))
+    return this.cloneSet(this.nameIndex.get(this.normalizeName(name)))
   }
 
   public getByNameFuzzy (source: string): [AccountSet | undefined, number] {
@@ -236,7 +236,7 @@ export class Accounts {
     source = this.normalizeName(source)
 
     // Loop through all name-account pairs and find the best match
-    for (const [name, set] of this.accountsByName.entries()) {
+    for (const [name, set] of this.nameIndex.entries()) {
       const rating = compareTwoStrings(source, name)
       if (rating > bestRating) {
         bestMatch = set
@@ -250,7 +250,7 @@ export class Accounts {
   // TODO: Implement this properly using the Firefly API
   public save (account: Account): void {
     // Check if the ID exists
-    const existing = this.accountsById.get(account.id)
+    const existing = this.accounts.get(account.id)
     if (existing === undefined) {
       console.error(`Account ID ${account.id} doesn't exist`)
       return
@@ -272,7 +272,7 @@ export class Accounts {
   }
 
   public changes (): void {
-    this.accountsById.forEach((b, id) => {
+    this.accounts.forEach((b, id) => {
       const diff = this.compare(this.originalAccounts.get(id), b)
       if (diff !== null) console.log(diff)
     })
