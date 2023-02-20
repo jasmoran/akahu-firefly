@@ -1,6 +1,7 @@
 import type { Transaction as AkahuTransaction } from 'akahu'
 import Big from 'big.js'
 import { Account, Accounts, AccountType } from './accounts'
+import { importAccounts } from './firefly-import'
 import { Transaction, Transactions, TransactionType } from './transactions'
 
 interface CurrencyConversion {
@@ -21,7 +22,7 @@ export class ProcessTransactions {
 
   public static async build (): Promise<ProcessTransactions> {
     const processor = new ProcessTransactions()
-    await processor.accounts.importFromFirefly()
+    await importAccounts(processor.accounts)
     await processor.transactions.importFromFirefly(processor.accounts)
     return processor
   }

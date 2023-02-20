@@ -1,5 +1,4 @@
 import { compareTwoStrings } from 'string-similarity'
-import * as firefly from './firefly'
 
 // List account types
 export enum AccountType {
@@ -10,19 +9,6 @@ export enum AccountType {
 }
 
 type AccountSet = { [K in AccountType]?: Account | undefined }
-
-// Map Firefly account types to Asset, Liability, Expense and Revenue
-// Ignore type accounts will be discarded
-const TypeMapping: { [K in firefly.AccountType]?: AccountType } = {
-  [firefly.AccountType.Default]: AccountType.Asset,
-  [firefly.AccountType.Cash]: AccountType.Asset,
-  [firefly.AccountType.Asset]: AccountType.Asset,
-  [firefly.AccountType.Expense]: AccountType.Expense,
-  [firefly.AccountType.Revenue]: AccountType.Revenue,
-  [firefly.AccountType.Loan]: AccountType.Liability,
-  [firefly.AccountType.Debt]: AccountType.Liability,
-  [firefly.AccountType.Mortgage]: AccountType.Liability
-}
 
 export interface Account {
   id: number
@@ -47,67 +33,12 @@ export class Accounts {
   // 4 digit Branch Number
   // 7 digit Account Body
   // 3 digit Account Suffix
-  private formatBankNumber (bankNumber: string): string {
+  public static formatBankNumber (bankNumber: string): string {
     const lengths = [2, 4, 7, 3]
     return bankNumber
       .split('-')
       .map((part, ix) => parseInt(part).toString().padStart(lengths[ix] ?? 0, '0'))
       .join('-')
-  }
-
-  public async importFromFirefly (): Promise<void> {
-    const fireflyAccounts = await firefly.accounts()
-
-    // Process each Firefly account
-    fireflyAccounts.forEach(fireflyAccount => {
-      // Fetch account type
-      const accountType = TypeMapping[fireflyAccount.type]
-      if (accountType === undefined) return
-
-      // Fetch Akahu ID
-      let akahuId
-      const externalId = fireflyAccount.external_id ?? fireflyAccount.iban
-      if (externalId !== null && /^(acc|merchant)_/.test(externalId)) {
-        akahuId = externalId
-      }
-
-      // Create Account from Firefly data
-      const name = fireflyAccount.name.trim()
-      const account = {
-        fireflyId: fireflyAccount.id,
-        akahuId,
-        name,
-        type: accountType,
-        bankNumbers: new Set<string>(),
-        alternateNames: new Set([name])
-      }
-
-      // Add bank account numbers
-      if (fireflyAccount.account_number !== null) {
-        const numbers = fireflyAccount.account_number.split(',')
-        numbers.forEach(number => {
-          if (/^\d+-\d+-\d+-\d+$/.test(number)) {
-            account.bankNumbers.add(this.formatBankNumber(number))
-          }
-        })
-      }
-
-      // Add alternate names
-      if (fireflyAccount.notes !== null) {
-        fireflyAccount
-          .notes
-          .match(/\*\*Alternate names\*\*(\n-\s*`[^`]+`)+/g)
-          ?.[0]
-          ?.split('\n')
-          ?.forEach(line => {
-            const name = line.match(/`([^`]+)`/)?.[1]
-            if (name !== undefined) account.alternateNames.add(name)
-          })
-      }
-
-      const createdAccount = this.create(account)
-      this.originalAccounts.set(createdAccount.id, { ...createdAccount })
-    })
   }
 
   private index (account: Account): void {
@@ -214,7 +145,7 @@ export class Accounts {
   }
 
   public getByBankNumber (bankNumber: string): AccountSet | undefined {
-    const formatted = this.formatBankNumber(bankNumber)
+    const formatted = Accounts.formatBankNumber(bankNumber)
     return this.cloneSet(this.bankNumberIndex.get(formatted))
   }
 
@@ -248,7 +179,6 @@ export class Accounts {
     return [bestMatch, bestRating]
   }
 
-  // TODO: Implement this properly using the Firefly API
   public save (account: Account): void {
     // Check if the ID exists
     const existing = this.accounts.get(account.id)
