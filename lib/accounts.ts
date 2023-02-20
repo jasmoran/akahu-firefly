@@ -209,7 +209,7 @@ export class Accounts {
     return this.clonePair(this.nameIndex.get(this.normalizeName(name)))
   }
 
-  public getByNameFuzzy (source: string): [AccountPair | undefined, number] {
+  public getByNameFuzzy (source: string): [AccountPair, number] {
     let bestMatch
     let bestRating = 0
 
@@ -225,7 +225,11 @@ export class Accounts {
       }
     }
 
-    return [this.clonePair(bestMatch), bestRating]
+    bestMatch = this.clonePair(bestMatch)
+
+    if (bestMatch === undefined) throw Error(`Could not find an account name to match ${source}`)
+
+    return [bestMatch, bestRating]
   }
 
   public save (account: Account): void {
