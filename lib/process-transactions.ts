@@ -4,6 +4,33 @@ import { Account, AccountPair, Accounts, AccountType } from './accounts'
 import { importAccounts } from './firefly-import'
 import { Transaction, Transactions, TransactionType } from './transactions'
 
+const transactionMapping = {
+  [AccountType.Asset]: {
+    [AccountType.Asset]: TransactionType.Transfer,
+    [AccountType.Liability]: TransactionType.Withdrawal,
+    [AccountType.Expense]: TransactionType.Withdrawal,
+    [AccountType.Revenue]: undefined
+  },
+  [AccountType.Liability]: {
+    [AccountType.Asset]: TransactionType.Deposit,
+    [AccountType.Liability]: TransactionType.Transfer,
+    [AccountType.Expense]: TransactionType.Withdrawal,
+    [AccountType.Revenue]: undefined
+  },
+  [AccountType.Expense]: {
+    [AccountType.Asset]: undefined,
+    [AccountType.Liability]: undefined,
+    [AccountType.Expense]: undefined,
+    [AccountType.Revenue]: undefined
+  },
+  [AccountType.Revenue]: {
+    [AccountType.Asset]: TransactionType.Deposit,
+    [AccountType.Liability]: TransactionType.Deposit,
+    [AccountType.Expense]: undefined,
+    [AccountType.Revenue]: undefined
+  }
+}
+
 interface CurrencyConversion {
   currency: string
   amount: number
@@ -66,9 +93,7 @@ export class ProcessTransactions {
     // transaction.meta.reference
     // transaction.meta.particulars
     // transaction.meta.code
-    // transaction.meta.other_account
     // transaction.type
-    // transaction.merchant
 
     // Look up Akahu Account ID (acc_xxxxx)
     const pair = this.accounts.getByAkahuId(transaction._account)
@@ -79,7 +104,7 @@ export class ProcessTransactions {
 
     const findAccount = this.findAccountPair(transaction)
 
-    let type, source: Account, destination: Account
+    let source: Account, destination: Account
     if (transaction.amount < 0) {
       if (findAccount.destination === undefined) {
         const other = findAccount.source
@@ -98,7 +123,6 @@ export class ProcessTransactions {
         destination = findAccount.destination
       }
 
-      type = TransactionType.Withdrawal
       source = account
     } else {
       if (findAccount.source === undefined) {
@@ -118,9 +142,11 @@ export class ProcessTransactions {
         source = findAccount.source
       }
 
-      type = TransactionType.Deposit
       destination = account
     }
+
+    const type = transactionMapping[source.type][destination.type]
+    if (type === undefined) throw Error(`Invalid transaction type ${source.type} -> ${destination.type}`)
 
     const fireflyTrans: Transaction = {
       fireflyId: 0,
