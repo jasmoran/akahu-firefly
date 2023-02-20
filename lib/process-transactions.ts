@@ -63,11 +63,10 @@ export class ProcessTransactions {
       destination = account
     }
 
-    if (type === TransactionType.Transfer) throw Error('Impossible')
-
     const fireflyTrans: Transaction = {
       fireflyId: 0,
       akahuId: transaction._id,
+      otherAkahuId: undefined,
       type,
       source,
       destination,

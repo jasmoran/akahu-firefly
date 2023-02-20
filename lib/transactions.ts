@@ -14,9 +14,13 @@ export enum TransactionType {
   Transfer = 'Transfer'
 }
 
-interface TransactionCommon {
+// Export Transaction type
+// Transfer transactions must have a second akahuId
+export interface Transaction {
+  type: TransactionType
   fireflyId: number
   akahuId: string | undefined
+  otherAkahuId: string | undefined
   description: string
   date: Date
   amount: Big
@@ -26,11 +30,6 @@ interface TransactionCommon {
   foreignCurrencyCode?: string
   categoryName?: string
 }
-
-// Export Transaction type
-// Transfer transactions must have a second akahuId
-export type Transaction = TransactionCommon & { type: TransactionType.Transfer, otherAkahuId: string | undefined }
-| TransactionCommon & { type: TransactionType.Withdrawal | TransactionType.Deposit | TransactionType.OpeningBalance | TransactionType.Reconciliation | TransactionType.Invalid | TransactionType.LiabilityCredit }
 
 export class Transactions {
   private readonly transactionsByFireflyId: Map<number, Transaction> = new Map()
@@ -60,29 +59,17 @@ export class Transactions {
       // This should be enforced by a foreign key in the database
       if (source === undefined || destination === undefined) throw Error("Source or desination account doesn't exist")
 
-      const common: TransactionCommon = {
+      // Create Transaction from Firefly data
+      const transaction: Transaction = {
+        type: transactionType,
         fireflyId: fireflyTransaction.id,
         description: fireflyTransaction.description,
         date: fireflyTransaction.date,
         amount: Big(fireflyTransaction.amount),
         source,
         destination,
-        akahuId: akahuIds[0]
-      }
-
-      // Create Transaction from Firefly data
-      let transaction: Transaction
-      if (transactionType === TransactionType.Transfer) {
-        transaction = {
-          ...common,
-          type: transactionType,
-          otherAkahuId: akahuIds[1]
-        }
-      } else {
-        transaction = {
-          ...common,
-          type: transactionType
-        }
+        akahuId: akahuIds[0],
+        otherAkahuId: akahuIds[1]
       }
 
       // Add optional values
@@ -108,7 +95,7 @@ export class Transactions {
     if (transaction.akahuId !== undefined) {
       this.addAkahuId(transaction.akahuId, transaction)
     }
-    if (transaction.type === TransactionType.Transfer && transaction.otherAkahuId !== undefined) {
+    if (transaction.otherAkahuId !== undefined) {
       this.addAkahuId(transaction.otherAkahuId, transaction)
     }
   }
@@ -154,7 +141,7 @@ export class Transactions {
     if (existing.akahuId !== undefined) {
       this.transactionsByAkahuId.delete(existing.akahuId)
     }
-    if (existing.type === TransactionType.Transfer && existing.otherAkahuId !== undefined) {
+    if (existing.otherAkahuId !== undefined) {
       this.transactionsByAkahuId.delete(existing.otherAkahuId)
     }
 
