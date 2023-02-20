@@ -1,4 +1,5 @@
 import { compareTwoStrings } from 'string-similarity'
+import { Util } from './util'
 
 // List account types
 export enum AccountType {
@@ -50,7 +51,7 @@ export class Accounts {
       if (existing === undefined) {
         this.fireflyIdIndex.set(account.fireflyId, account)
       } else {
-        console.error(`Firefly account ID ${account.fireflyId} duplicated in ${JSON.stringify(existing)} and ${JSON.stringify(account)}`)
+        console.error(`Firefly account ID ${account.fireflyId} duplicated in ${Util.stringify(existing)} and ${Util.stringify(account)}`)
       }
     }
 
@@ -61,7 +62,7 @@ export class Accounts {
         set[account.type] = account
         this.akahuIdIndex.set(account.akahuId, set)
       } else {
-        console.error(`Akahu account ID ${account.akahuId} duplicated in ${JSON.stringify(set)} and ${JSON.stringify(account)}`)
+        console.error(`Akahu account ID ${account.akahuId} duplicated in ${Util.stringify(set)} and ${Util.stringify(account)}`)
       }
     }
 
@@ -73,7 +74,7 @@ export class Accounts {
         set[account.type] = account
         this.nameIndex.set(name, set)
       } else {
-        console.error(`Account name ${name} duplicated in ${JSON.stringify(set)} and ${JSON.stringify(account)}`)
+        console.error(`Account name ${name} duplicated in ${Util.stringify(set)} and ${Util.stringify(account)}`)
       }
     })
 
@@ -84,7 +85,7 @@ export class Accounts {
         set[account.type] = account
         this.bankNumberIndex.set(bankNumber, set)
       } else {
-        console.error(`Bank account number ${bankNumber} duplicated in ${JSON.stringify(set)} and ${JSON.stringify(account)}`)
+        console.error(`Bank account number ${bankNumber} duplicated in ${Util.stringify(set)} and ${Util.stringify(account)}`)
       }
     })
   }

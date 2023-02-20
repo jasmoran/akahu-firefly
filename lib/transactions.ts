@@ -1,6 +1,7 @@
 import Big from 'big.js'
 import type { Account, Accounts } from './accounts'
 import * as firefly from './firefly'
+import { Util } from './util'
 
 // List transaction types
 export enum TransactionType {
@@ -100,7 +101,7 @@ export class Transactions {
     if (existing === undefined) {
       this.transactionsByFireflyId.set(transaction.fireflyId, transaction)
     } else {
-      console.error(`Firefly transaction ID ${transaction.fireflyId} duplicated in ${JSON.stringify(existing)} and ${JSON.stringify(transaction)}`)
+      console.error(`Firefly transaction ID ${transaction.fireflyId} duplicated in ${Util.stringify(existing)} and ${Util.stringify(transaction)}`)
     }
 
     // Add transaction to transactionsByAkahuId
@@ -117,7 +118,7 @@ export class Transactions {
     if (existing === undefined) {
       this.transactionsByAkahuId.set(akahuId, transaction)
     } else {
-      console.error(`Akahu transaction ID ${akahuId} duplicated in ${JSON.stringify(existing)} and ${JSON.stringify(transaction)}`)
+      console.error(`Akahu transaction ID ${akahuId} duplicated in ${Util.stringify(existing)} and ${Util.stringify(transaction)}`)
     }
   }
 
