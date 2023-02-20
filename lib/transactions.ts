@@ -53,8 +53,8 @@ export class Transactions {
       const externalIds = externalId.length === 0 ? [] : externalId.split(',')
       const akahuIds = externalIds.filter(id => id.startsWith('trans_'))
 
-      const source = accounts.getByFireflyId(fireflyTransaction.source_id)
-      const destination = accounts.getByFireflyId(fireflyTransaction.destination_id)
+      const source = accounts.getByFireflyId(fireflyTransaction.source_id)?.source
+      const destination = accounts.getByFireflyId(fireflyTransaction.destination_id)?.destination
 
       // Confirm source and destination account exist
       // This should be enforced by a foreign key in the database

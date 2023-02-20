@@ -9,7 +9,10 @@ export enum AccountType {
   Revenue = 'revenue'
 }
 
-type AccountSet = { [K in AccountType]?: Account | undefined }
+export interface AccountPair {
+  source: Account | undefined
+  destination: Account | undefined
+}
 
 export interface Account {
   id: number
@@ -24,10 +27,10 @@ export interface Account {
 export class Accounts {
   private counter = 0
   private accounts: Map<number, Account> = new Map()
-  private fireflyIdIndex: Map<number, Account> = new Map()
-  private akahuIdIndex: Map<string, AccountSet> = new Map()
-  private bankNumberIndex: Map<string, AccountSet> = new Map()
-  private nameIndex: Map<string, AccountSet> = new Map()
+  private fireflyIdIndex: Map<number, AccountPair> = new Map()
+  private akahuIdIndex: Map<string, AccountPair> = new Map()
+  private bankNumberIndex: Map<string, AccountPair> = new Map()
+  private nameIndex: Map<string, AccountPair> = new Map()
 
   // Formats a bank account string:
   // 2 digit Bank Number
@@ -42,51 +45,98 @@ export class Accounts {
       .join('-')
   }
 
+  // Find all accounts that match any of the provided identifiers
+  private findMatches (account: Account): AccountPair[] {
+    const matches: Map<string, AccountPair> = new Map()
+
+    // Uniquely identify AccountPairs using the combination of the source and destination IDs
+    const addPair = (pair: AccountPair | undefined): void => {
+      if (pair !== undefined) {
+        matches.set(`${pair.source?.id ?? ''}~${pair.destination?.id ?? ''}`, pair)
+      }
+    }
+
+    // Match on account name
+    account.alternateNames.forEach(name => {
+      addPair(this.nameIndex.get(this.normalizeName(name)))
+    })
+
+    // Match on bank numbers
+    account.bankNumbers.forEach(bankNumber => {
+      addPair(this.bankNumberIndex.get(bankNumber))
+    })
+
+    // Match on Akahu ID
+    addPair(this.akahuIdIndex.get(account.akahuId ?? ''))
+
+    // Match on Firefly ID
+    addPair(this.fireflyIdIndex.get(account.fireflyId ?? 0))
+
+    return [...matches.values()]
+  }
+
+  private findPair (account: Account): AccountPair {
+    const matches = this.findMatches(account)
+
+    // We must match one account at most
+    if (matches.length < 2) {
+      let pair = matches[0]
+
+      if (account.type === AccountType.Expense) {
+        if (pair === undefined) {
+          // Create a new pair if one doesn't exist
+          pair = { source: undefined, destination: account }
+          return pair
+        } else if (pair.destination === undefined) {
+          pair.destination = account
+          return pair
+        }
+      } else if (account.type === AccountType.Revenue) {
+        if (pair === undefined) {
+          // Create a new pair if one doesn't exist
+          pair = { source: account, destination: undefined }
+          return pair
+        } else if (pair.source === undefined) {
+          pair.source = account
+          return pair
+        }
+      } else {
+        if (pair === undefined) {
+          // Create a new pair if one doesn't exist
+          pair = { source: account, destination: account }
+          return pair
+        }
+      }
+    }
+
+    throw Error(`Account (${Util.stringify(account)}) conflicts with accounts:\n${Util.stringify(matches)}`)
+  }
+
   private index (account: Account): void {
     this.accounts.set(account.id, account)
 
-    // Add account to accountsByFireflyId
+    // Find a single AccountPair that matches this account
+    const pair = this.findPair(account)
+
+    // Add account to fireflyIdIndex
     if (account.fireflyId !== undefined) {
-      const existing = this.fireflyIdIndex.get(account.fireflyId)
-      if (existing === undefined) {
-        this.fireflyIdIndex.set(account.fireflyId, account)
-      } else {
-        console.error(`Firefly account ID ${account.fireflyId} duplicated in ${Util.stringify(existing)} and ${Util.stringify(account)}`)
-      }
+      this.fireflyIdIndex.set(account.fireflyId, pair)
     }
 
-    // Add account to accountsByAkahuId
+    // Add account to akahuIdIndex
     if (account.akahuId !== undefined) {
-      const set = this.akahuIdIndex.get(account.akahuId) ?? {}
-      if (set[account.type] === undefined) {
-        set[account.type] = account
-        this.akahuIdIndex.set(account.akahuId, set)
-      } else {
-        console.error(`Akahu account ID ${account.akahuId} duplicated in ${Util.stringify(set)} and ${Util.stringify(account)}`)
-      }
+      this.akahuIdIndex.set(account.akahuId, pair)
     }
 
-    // Add account to accountsByName (both main and alternate names)
+    // Add account to nameIndex (both main and alternate names)
     account.alternateNames.forEach(name => {
       name = this.normalizeName(name)
-      const set = this.nameIndex.get(name) ?? {}
-      if (set[account.type] === undefined) {
-        set[account.type] = account
-        this.nameIndex.set(name, set)
-      } else {
-        console.error(`Account name ${name} duplicated in ${Util.stringify(set)} and ${Util.stringify(account)}`)
-      }
+      this.nameIndex.set(name, pair)
     })
 
-    // Add account to accountsByBankNumber
+    // Add account to bankNumberIndex
     account.bankNumbers.forEach(bankNumber => {
-      const set = this.bankNumberIndex.get(bankNumber) ?? {}
-      if (set[account.type] === undefined) {
-        set[account.type] = account
-        this.bankNumberIndex.set(bankNumber, set)
-      } else {
-        console.error(`Bank account number ${bankNumber} duplicated in ${Util.stringify(set)} and ${Util.stringify(account)}`)
-      }
+      this.bankNumberIndex.set(bankNumber, pair)
     })
   }
 
@@ -120,15 +170,13 @@ export class Accounts {
     }
   }
 
-  private cloneSet (set: AccountSet | undefined): AccountSet | undefined {
-    if (set === undefined) {
+  private clonePair (pair: AccountPair | undefined): AccountPair | undefined {
+    if (pair === undefined) {
       return undefined
     } else {
       return {
-        [AccountType.Asset]: this.clone(set[AccountType.Asset]),
-        [AccountType.Liability]: this.clone(set[AccountType.Liability]),
-        [AccountType.Expense]: this.clone(set[AccountType.Expense]),
-        [AccountType.Revenue]: this.clone(set[AccountType.Revenue])
+        source: this.clone(pair.source),
+        destination: this.clone(pair.destination)
       }
     }
   }
@@ -137,17 +185,17 @@ export class Accounts {
     return this.clone(this.accounts.get(id))
   }
 
-  public getByAkahuId (akahuId: string): AccountSet | undefined {
-    return this.cloneSet(this.akahuIdIndex.get(akahuId))
+  public getByAkahuId (akahuId: string): AccountPair | undefined {
+    return this.clonePair(this.akahuIdIndex.get(akahuId))
   }
 
-  public getByFireflyId (fireflyId: number): Account | undefined {
-    return this.clone(this.fireflyIdIndex.get(fireflyId))
+  public getByFireflyId (fireflyId: number): AccountPair | undefined {
+    return this.clonePair(this.fireflyIdIndex.get(fireflyId))
   }
 
-  public getByBankNumber (bankNumber: string): AccountSet | undefined {
+  public getByBankNumber (bankNumber: string): AccountPair | undefined {
     const formatted = Accounts.formatBankNumber(bankNumber)
-    return this.cloneSet(this.bankNumberIndex.get(formatted))
+    return this.clonePair(this.bankNumberIndex.get(formatted))
   }
 
   private normalizeName (name: string): string {
@@ -157,11 +205,11 @@ export class Accounts {
       .trim()
   }
 
-  public getByName (name: string): AccountSet | undefined {
-    return this.cloneSet(this.nameIndex.get(this.normalizeName(name)))
+  public getByName (name: string): AccountPair | undefined {
+    return this.clonePair(this.nameIndex.get(this.normalizeName(name)))
   }
 
-  public getByNameFuzzy (source: string): [AccountSet | undefined, number] {
+  public getByNameFuzzy (source: string): [AccountPair | undefined, number] {
     let bestMatch
     let bestRating = 0
 
@@ -169,15 +217,15 @@ export class Accounts {
     source = this.normalizeName(source)
 
     // Loop through all name-account pairs and find the best match
-    for (const [name, set] of this.nameIndex.entries()) {
+    for (const [name, pair] of this.nameIndex.entries()) {
       const rating = compareTwoStrings(source, name)
       if (rating > bestRating) {
-        bestMatch = set
+        bestMatch = pair
         bestRating = rating
       }
     }
 
-    return [bestMatch, bestRating]
+    return [this.clonePair(bestMatch), bestRating]
   }
 
   public save (account: Account): void {
