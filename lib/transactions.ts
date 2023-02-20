@@ -197,6 +197,8 @@ export class Transactions {
         equal = aValue.eq(bValue)
       } else if (aValue instanceof Date && bValue instanceof Date) {
         equal = aValue.getTime() === bValue.getTime()
+      } else if (aValue instanceof Object && bValue instanceof Object && 'id' in aValue && 'id' in bValue) {
+        equal = aValue.id === bValue.id
       } else {
         equal = aValue === bValue
       }
