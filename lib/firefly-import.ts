@@ -92,7 +92,7 @@ export async function importTransactions (accounts: Accounts, transactions: Tran
     if (source === undefined || destination === undefined) throw Error("Source or desination account doesn't exist")
 
     // Create Transaction from Firefly data
-    const transaction: Transaction = {
+    const transaction: Omit<Transaction, 'id'> = {
       type: transactionType,
       fireflyId: fireflyTransaction.id,
       description: fireflyTransaction.description,
