@@ -15,7 +15,7 @@ export class ProcessTransactions {
   public static async build (): Promise<ProcessTransactions> {
     const processor = new ProcessTransactions()
     await fireflyImport.importAccounts(processor.accounts)
-    await processor.transactions.importFromFirefly(processor.accounts)
+    await fireflyImport.importTransactions(processor.accounts, processor.transactions)
     return processor
   }
 

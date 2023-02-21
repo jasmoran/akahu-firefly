@@ -1,6 +1,5 @@
 import Big from 'big.js'
-import type { Account, Accounts } from './accounts'
-import * as firefly from './firefly'
+import type { Account } from './accounts'
 import { Util } from './util'
 
 // List transaction types
@@ -37,50 +36,6 @@ export class Transactions {
 
   // Track modifications
   private readonly originalTransactions: Map<number, Transaction> = new Map()
-
-  public async importFromFirefly (accounts: Accounts): Promise<void> {
-    const fireflyTransactions = await firefly.transactions()
-
-    // Process each Firefly transaction
-    fireflyTransactions.forEach(fireflyTransaction => {
-      // Fetch transaction type
-      const transactionType: TransactionType = TransactionType[fireflyTransaction.type as keyof typeof TransactionType]
-
-      // Split comma seperated external IDs into an array
-      // Array should be empty if external ID is empty or null
-      const externalId = fireflyTransaction.external_id ?? ''
-      const externalIds = externalId.length === 0 ? [] : externalId.split(',')
-      const akahuIds = externalIds.filter(id => id.startsWith('trans_'))
-
-      const source = accounts.getByFireflyId(fireflyTransaction.source_id)?.source
-      const destination = accounts.getByFireflyId(fireflyTransaction.destination_id)?.destination
-
-      // Confirm source and destination account exist
-      // This should be enforced by a foreign key in the database
-      if (source === undefined || destination === undefined) throw Error("Source or desination account doesn't exist")
-
-      // Create Transaction from Firefly data
-      const transaction: Transaction = {
-        type: transactionType,
-        fireflyId: fireflyTransaction.id,
-        description: fireflyTransaction.description,
-        date: fireflyTransaction.date,
-        amount: Big(fireflyTransaction.amount),
-        source,
-        destination,
-        akahuId: akahuIds[0],
-        otherAkahuId: akahuIds[1]
-      }
-
-      // Add optional values
-      if (fireflyTransaction.foreign_amount !== null) transaction.foreignAmount = Big(fireflyTransaction.foreign_amount)
-      if (fireflyTransaction.foreign_currency_code !== null) transaction.foreignCurrencyCode = fireflyTransaction.foreign_currency_code
-      if (fireflyTransaction.category_name !== null) transaction.categoryName = fireflyTransaction.category_name
-
-      this.add(transaction)
-      this.originalTransactions.set(transaction.fireflyId, { ...transaction })
-    })
-  }
 
   private add (transaction: Transaction): void {
     // Add transaction to transactionsByFireflyId
