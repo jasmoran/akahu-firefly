@@ -34,26 +34,26 @@ export interface Transaction {
 export class Transactions {
   private counter = 0
   private readonly transactions: Map<number, Transaction> = new Map()
-  private readonly transactionsByFireflyId: Map<number, Transaction> = new Map()
-  private readonly transactionsByAkahuId: Map<string, Transaction> = new Map()
+  private readonly fireflyIdIndex: Map<number, Transaction> = new Map()
+  private readonly akahuIdIndex: Map<string, Transaction> = new Map()
 
   // Track modifications
   private readonly originalTransactions: Map<number, Transaction> = new Map()
 
-  private add (transaction: Transaction): void {
+  private index (transaction: Transaction): void {
     this.transactions.set(transaction.id, transaction)
 
-    // Add transaction to transactionsByFireflyId
+    // Add transaction to fireflyIdIndex
     if (transaction.fireflyId !== undefined) {
-      const existing = this.transactionsByFireflyId.get(transaction.fireflyId)
+      const existing = this.fireflyIdIndex.get(transaction.fireflyId)
       if (existing === undefined) {
-        this.transactionsByFireflyId.set(transaction.fireflyId, transaction)
+        this.fireflyIdIndex.set(transaction.fireflyId, transaction)
       } else {
         console.error(`Firefly transaction ID ${transaction.fireflyId} duplicated in ${Util.stringify(existing)} and ${Util.stringify(transaction)}`)
       }
     }
 
-    // Add transaction to transactionsByAkahuId
+    // Add transaction to akahuIdIndex
     if (transaction.akahuId !== undefined) {
       this.addAkahuId(transaction.akahuId, transaction)
     }
@@ -62,10 +62,25 @@ export class Transactions {
     }
   }
 
+  private deindex (transaction: Transaction): void {
+    // Remove transaction from fireflyIdIndex
+    if (transaction.fireflyId !== undefined) {
+      this.fireflyIdIndex.delete(transaction.fireflyId)
+    }
+
+    // Remove transaction from akahuIdIndex
+    if (transaction.akahuId !== undefined) {
+      this.akahuIdIndex.delete(transaction.akahuId)
+    }
+    if (transaction.otherAkahuId !== undefined) {
+      this.akahuIdIndex.delete(transaction.otherAkahuId)
+    }
+  }
+
   private addAkahuId (akahuId: string, transaction: Transaction): void {
-    const existing = this.transactionsByAkahuId.get(akahuId)
+    const existing = this.akahuIdIndex.get(akahuId)
     if (existing === undefined) {
-      this.transactionsByAkahuId.set(akahuId, transaction)
+      this.akahuIdIndex.set(akahuId, transaction)
     } else {
       console.error(`Akahu transaction ID ${akahuId} duplicated in ${Util.stringify(existing)} and ${Util.stringify(transaction)}`)
     }
@@ -84,14 +99,13 @@ export class Transactions {
   }
 
   public getByAkahuId (akahuId: string): Transaction | undefined {
-    return this.clone(this.transactionsByAkahuId.get(akahuId))
+    return this.clone(this.akahuIdIndex.get(akahuId))
   }
 
   public getByFireflyId (fireflyId: number): Transaction | undefined {
-    return this.clone(this.transactionsByFireflyId.get(fireflyId))
+    return this.clone(this.fireflyIdIndex.get(fireflyId))
   }
 
-  // TODO: Implement this properly using the Firefly API
   public save (transaction: Transaction): void {
     // Check if the ID exists
     const existing = this.transactions.get(transaction.id)
@@ -100,29 +114,18 @@ export class Transactions {
       return
     }
 
-    // Remove transaction from transactionsByFireflyId
-    if (existing.fireflyId !== undefined) {
-      this.transactionsByFireflyId.delete(existing.fireflyId)
-    }
+    // De-index transaction
+    this.deindex(existing)
 
-    // Remove transaction from transactionsByAkahuId
-    if (existing.akahuId !== undefined) {
-      this.transactionsByAkahuId.delete(existing.akahuId)
-    }
-    if (existing.otherAkahuId !== undefined) {
-      this.transactionsByAkahuId.delete(existing.otherAkahuId)
-    }
-
-    // Re-add transaction
-    this.add(transaction)
+    // Re-index transaction
+    this.index(transaction)
   }
 
-  // TODO: Implement this properly using the Firefly API
   public create (inputTransaction: Omit<Transaction, 'id'>): Transaction {
     const transaction = inputTransaction as Transaction
     this.counter++
     transaction.id = this.counter
-    this.add(transaction)
+    this.index(transaction)
     return transaction
   }
 

@@ -141,22 +141,22 @@ export class Accounts {
   }
 
   private deindex (account: Account): void {
-    // Remove account from accountsByFireflyId
+    // Remove account from fireflyIdIndex
     if (account.fireflyId !== undefined) {
       this.fireflyIdIndex.delete(account.fireflyId)
     }
 
-    // Remove account from accountsByAkahuId
+    // Remove account from akahuIdIndex
     if (account.akahuId !== undefined) {
       this.akahuIdIndex.delete(account.akahuId)
     }
 
-    // Remove account from accountsByName
+    // Remove account from nameIndex
     account.alternateNames.forEach(name => {
       this.nameIndex.delete(this.normalizeName(name))
     })
 
-    // Remove account from accountsByBankNumber
+    // Remove account from bankNumberIndex
     account.bankNumbers.forEach(bankNumber => {
       this.bankNumberIndex.delete(bankNumber)
     })
