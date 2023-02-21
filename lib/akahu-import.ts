@@ -145,8 +145,7 @@ export async function importTransactions (accounts: Accounts, transactions: Tran
 
     const fireflyTrans: Omit<Transaction, 'id'> = {
       fireflyId: undefined,
-      akahuId: transaction._id,
-      otherAkahuId: undefined,
+      akahuIds: new Set([transaction._id]),
       type,
       source,
       destination,

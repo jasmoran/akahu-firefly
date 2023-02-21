@@ -19,8 +19,7 @@ export interface Transaction {
   id: number
   type: TransactionType
   fireflyId: number | undefined
-  akahuId: string | undefined
-  otherAkahuId: string | undefined
+  akahuIds: Set<string>
   description: string
   date: Date
   amount: Big
@@ -54,12 +53,14 @@ export class Transactions {
     }
 
     // Add transaction to akahuIdIndex
-    if (transaction.akahuId !== undefined) {
-      this.addAkahuId(transaction.akahuId, transaction)
-    }
-    if (transaction.otherAkahuId !== undefined) {
-      this.addAkahuId(transaction.otherAkahuId, transaction)
-    }
+    transaction.akahuIds.forEach(akahuId => {
+      const existing = this.akahuIdIndex.get(akahuId)
+      if (existing === undefined) {
+        this.akahuIdIndex.set(akahuId, transaction)
+      } else {
+        console.error(`Akahu transaction ID ${akahuId} duplicated in ${Util.stringify(existing)} and ${Util.stringify(transaction)}`)
+      }
+    })
   }
 
   private deindex (transaction: Transaction): void {
@@ -69,21 +70,9 @@ export class Transactions {
     }
 
     // Remove transaction from akahuIdIndex
-    if (transaction.akahuId !== undefined) {
-      this.akahuIdIndex.delete(transaction.akahuId)
-    }
-    if (transaction.otherAkahuId !== undefined) {
-      this.akahuIdIndex.delete(transaction.otherAkahuId)
-    }
-  }
-
-  private addAkahuId (akahuId: string, transaction: Transaction): void {
-    const existing = this.akahuIdIndex.get(akahuId)
-    if (existing === undefined) {
-      this.akahuIdIndex.set(akahuId, transaction)
-    } else {
-      console.error(`Akahu transaction ID ${akahuId} duplicated in ${Util.stringify(existing)} and ${Util.stringify(transaction)}`)
-    }
+    transaction.akahuIds.forEach(akahuId => {
+      this.akahuIdIndex.delete(akahuId)
+    })
   }
 
   private clone (transaction: Transaction | undefined): Transaction | undefined {

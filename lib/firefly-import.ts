@@ -100,8 +100,7 @@ export async function importTransactions (accounts: Accounts, transactions: Tran
       amount: Big(fireflyTransaction.amount),
       source,
       destination,
-      akahuId: akahuIds[0],
-      otherAkahuId: akahuIds[1]
+      akahuIds: new Set(akahuIds)
     }
 
     // Add optional values
