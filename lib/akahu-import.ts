@@ -143,8 +143,8 @@ export async function importTransactions (accounts: Accounts, transactions: Tran
     const type = transactionMapping[source.type][destination.type]
     if (type === undefined) throw Error(`Invalid transaction type ${source.type} -> ${destination.type}`)
 
-    const fireflyTrans: Transaction = {
-      fireflyId: 0,
+    const fireflyTrans: Omit<Transaction, 'id'> = {
+      fireflyId: undefined,
       akahuId: transaction._id,
       otherAkahuId: undefined,
       type,

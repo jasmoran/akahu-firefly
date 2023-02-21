@@ -249,8 +249,8 @@ export class Accounts {
 
   public create (inputAccount: Omit<Account, 'id'>): Account {
     const account = inputAccount as Account
-    account.id = this.counter
     this.counter++
+    account.id = this.counter
     this.index(account)
     return account
   }

@@ -16,8 +16,9 @@ export enum TransactionType {
 // Export Transaction type
 // Transfer transactions must have a second akahuId
 export interface Transaction {
+  id: number
   type: TransactionType
-  fireflyId: number
+  fireflyId: number | undefined
   akahuId: string | undefined
   otherAkahuId: string | undefined
   description: string
@@ -31,6 +32,8 @@ export interface Transaction {
 }
 
 export class Transactions {
+  private counter = 0
+  private readonly transactions: Map<number, Transaction> = new Map()
   private readonly transactionsByFireflyId: Map<number, Transaction> = new Map()
   private readonly transactionsByAkahuId: Map<string, Transaction> = new Map()
 
@@ -38,12 +41,16 @@ export class Transactions {
   private readonly originalTransactions: Map<number, Transaction> = new Map()
 
   private add (transaction: Transaction): void {
+    this.transactions.set(transaction.id, transaction)
+
     // Add transaction to transactionsByFireflyId
-    const existing = this.transactionsByFireflyId.get(transaction.fireflyId)
-    if (existing === undefined) {
-      this.transactionsByFireflyId.set(transaction.fireflyId, transaction)
-    } else {
-      console.error(`Firefly transaction ID ${transaction.fireflyId} duplicated in ${Util.stringify(existing)} and ${Util.stringify(transaction)}`)
+    if (transaction.fireflyId !== undefined) {
+      const existing = this.transactionsByFireflyId.get(transaction.fireflyId)
+      if (existing === undefined) {
+        this.transactionsByFireflyId.set(transaction.fireflyId, transaction)
+      } else {
+        console.error(`Firefly transaction ID ${transaction.fireflyId} duplicated in ${Util.stringify(existing)} and ${Util.stringify(transaction)}`)
+      }
     }
 
     // Add transaction to transactionsByAkahuId
@@ -72,6 +79,10 @@ export class Transactions {
     }
   }
 
+  public get (id: number): Transaction | undefined {
+    return this.clone(this.transactions.get(id))
+  }
+
   public getByAkahuId (akahuId: string): Transaction | undefined {
     return this.clone(this.transactionsByAkahuId.get(akahuId))
   }
@@ -82,15 +93,17 @@ export class Transactions {
 
   // TODO: Implement this properly using the Firefly API
   public save (transaction: Transaction): void {
-    // Check if the Firefly ID exists
-    const existing = this.transactionsByFireflyId.get(transaction.fireflyId)
+    // Check if the ID exists
+    const existing = this.transactions.get(transaction.id)
     if (existing === undefined) {
-      console.error(`Firefly transaction ID ${transaction.fireflyId} doesn't exist`)
+      console.error(`Transaction ID ${transaction.id} doesn't exist`)
       return
     }
 
     // Remove transaction from transactionsByFireflyId
-    this.transactionsByFireflyId.delete(existing.fireflyId)
+    if (existing.fireflyId !== undefined) {
+      this.transactionsByFireflyId.delete(existing.fireflyId)
+    }
 
     // Remove transaction from transactionsByAkahuId
     if (existing.akahuId !== undefined) {
@@ -105,17 +118,17 @@ export class Transactions {
   }
 
   // TODO: Implement this properly using the Firefly API
-  public create (inputTransaction: Omit<Transaction, 'fireflyId'>): Transaction {
-    const fireflyId = Math.max(...this.transactionsByFireflyId.keys()) + 1
+  public create (inputTransaction: Omit<Transaction, 'id'>): Transaction {
     const transaction = inputTransaction as Transaction
-    transaction.fireflyId = fireflyId
+    this.counter++
+    transaction.id = this.counter
     this.add(transaction)
     return transaction
   }
 
   public changes (): void {
-    this.transactionsByFireflyId.forEach((b, fireflyId) => {
-      const diff = this.compare(this.originalTransactions.get(fireflyId), b)
+    this.transactions.forEach((b, id) => {
+      const diff = this.compare(this.originalTransactions.get(id), b)
       if (diff !== null) console.log(diff)
     })
   }
@@ -152,7 +165,7 @@ export class Transactions {
 
     // Return changed properties or null
     if (different) {
-      result.fireflyId = b.fireflyId
+      result.id = b.id
       return result as Partial<Transaction>
     } else {
       return null
