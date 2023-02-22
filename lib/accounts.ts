@@ -25,7 +25,7 @@ export interface Account {
 }
 
 export class Accounts {
-  private counter = 0
+  private static counter = 0
   private accounts: Map<number, Account> = new Map()
   private fireflyIdIndex: Map<number, AccountPair> = new Map()
   private akahuIdIndex: Map<string, AccountPair> = new Map()
@@ -249,15 +249,14 @@ export class Accounts {
 
   public create (inputAccount: Omit<Account, 'id'>): Account {
     const account = inputAccount as Account
-    this.counter++
-    account.id = this.counter
+    Accounts.counter++
+    account.id = Accounts.counter
     this.index(account)
     return account
   }
 
   public duplicate (): Accounts {
     const newAccounts = new Accounts()
-    newAccounts.counter = this.counter
     newAccounts.accounts = this.accounts
     newAccounts.fireflyIdIndex = this.fireflyIdIndex
     newAccounts.akahuIdIndex = this.akahuIdIndex

@@ -31,7 +31,7 @@ export interface Transaction {
 }
 
 export class Transactions {
-  private counter = 0
+  private static counter = 0
   private readonly transactions: Map<number, Transaction> = new Map()
   private readonly fireflyIdIndex: Map<number, Transaction> = new Map()
   private readonly akahuIdIndex: Map<string, Transaction> = new Map()
@@ -112,8 +112,8 @@ export class Transactions {
 
   public create (inputTransaction: Omit<Transaction, 'id'>): Transaction {
     const transaction = inputTransaction as Transaction
-    this.counter++
-    transaction.id = this.counter
+    Transactions.counter++
+    transaction.id = Transactions.counter
     this.index(transaction)
     return transaction
   }
