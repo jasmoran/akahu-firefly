@@ -76,24 +76,28 @@ export class Transactions {
     })
   }
 
-  private clone (transaction: Transaction | undefined): Transaction | undefined {
-    if (transaction === undefined) {
-      return undefined
-    } else {
-      return { ...transaction }
-    }
+  private clone (transaction: Transaction): Transaction {
+    const clone = { ...transaction }
+    clone.akahuIds = new Set(clone.akahuIds)
+    clone.date = new Date(clone.date)
+    clone.amount = new Big(clone.amount)
+    if ('foreignAmount' in clone) clone.foreignAmount = new Big(clone.foreignAmount)
+    return clone
   }
 
   public get (id: number): Transaction | undefined {
-    return this.clone(this.transactions.get(id))
+    const res = this.transactions.get(id)
+    return res === undefined ? undefined : this.clone(res)
   }
 
   public getByAkahuId (akahuId: string): Transaction | undefined {
-    return this.clone(this.akahuIdIndex.get(akahuId))
+    const res = this.akahuIdIndex.get(akahuId)
+    return res === undefined ? undefined : this.clone(res)
   }
 
   public getByFireflyId (fireflyId: number): Transaction | undefined {
-    return this.clone(this.fireflyIdIndex.get(fireflyId))
+    const res = this.fireflyIdIndex.get(fireflyId)
+    return res === undefined ? undefined : this.clone(res)
   }
 
   public save (transaction: Transaction): void {
