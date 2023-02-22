@@ -1,4 +1,5 @@
 import Big from 'big.js'
+import { compareTwoStrings } from 'string-similarity'
 import type { Account } from './accounts'
 import { Util } from './util'
 
@@ -112,8 +113,10 @@ export class Transactions {
 
   public create (inputTransaction: Omit<Transaction, 'id'>): Transaction {
     const transaction = inputTransaction as Transaction
-    Transactions.counter++
-    transaction.id = Transactions.counter
+    if (transaction.id === undefined) {
+      Transactions.counter++
+      transaction.id = Transactions.counter
+    }
     this.index(transaction)
     return transaction
   }
@@ -162,5 +165,125 @@ export class Transactions {
     } else {
       return null
     }
+  }
+
+  private findBestTransaction (transaction: Transaction, transactions: Transaction[]): Transaction | undefined {
+    // Find transactions with the same source, destination and amount
+    const matches = transactions.filter(other => {
+      // Check firefly IDs match
+      if ('fireflyId' in transaction && 'fireflyId' in other && transaction.fireflyId !== other.fireflyId) {
+        return false
+      }
+
+      // Check foreign amount details match
+      if ('foreignAmount' in transaction && 'foreignAmount' in other && !transaction.foreignAmount.eq(other.foreignAmount)) {
+        return false
+      }
+      if ('foreignCurrencyCode' in transaction && 'foreignCurrencyCode' in other && transaction.foreignCurrencyCode !== other.foreignCurrencyCode) {
+        return false
+      }
+
+      return transaction.type === other.type &&
+        transaction.source.id === other.source.id &&
+        transaction.destination.id === other.destination.id &&
+        transaction.amount.eq(other.amount)
+    })
+
+    type Similarities = Array<{
+      date: number
+      description: number
+      transaction: Transaction
+    }>
+
+    // Calculate similarity of date and description for each match
+    const similarities: Similarities = matches.map(other => ({
+      date: Math.abs(transaction.date.getTime() - other.date.getTime()), // Similarity to target date
+      description: compareTwoStrings(transaction.description, other.description), // Similarity to target description
+      transaction: other
+    }))
+
+    // Sort by date and then description
+    similarities.sort((a, b) => {
+      const dateCompare = a.date - b.date
+      if (dateCompare !== 0) {
+        return dateCompare
+      } else {
+        return a.description - b.description
+      }
+    })
+
+    // Return best match
+    return similarities[0]?.transaction
+  }
+
+  /**
+   * Populate missing details in transaction a with details from transaction
+   */
+  private mergeTransactions (a: Transaction, b: Transaction): void {
+    // Update transaction a from transaction b
+    a.fireflyId ??= b.fireflyId
+    a.akahuIds = new Set([...a.akahuIds, ...b.akahuIds])
+    a.description = `${a.description} - ${b.description}`
+    a.date ??= b.date
+    if ('foreignAmount' in b) a.foreignAmount ??= b.foreignAmount
+    if ('foreignCurrencyCode' in b) a.foreignCurrencyCode ??= b.foreignCurrencyCode
+    if ('categoryName' in b) a.categoryName ??= b.categoryName
+
+    // Use transaction B's date if it has the transaction time set
+    if (b.date.getMinutes() !== 0 || b.date.getHours() !== 0) {
+      a.date = b.date
+    }
+  }
+
+  /**
+   * Merges transactions from `other` into this Transactions instance
+   *
+   * De-duplicates transactions
+   *
+   * @param other Other set of transactions
+   * @returns {Object} Lists of transactions that are unique to the left and right hand sides of the merge
+   */
+  public merge (other: Transactions): { left: Map<number, Transaction>, right: Map<number, Transaction> } {
+    // Clone transaction maps
+    const left: Map<number, Transaction> = new Map(this.transactions)
+    const right: Map<number, Transaction> = new Map(other.transactions)
+
+    // Look for transactions in left that match transactions in `other`
+    left.forEach(transaction => {
+      // Find the best matching transaction
+      const match = this.findBestTransaction(transaction, [...right.values()])
+
+      // Merge the two transactions if a match was found
+      if (match !== undefined) {
+        // Remove matched transactions
+        left.delete(transaction.id)
+        right.delete(match.id)
+
+        // Merged transactions
+        this.mergeTransactions(transaction, match)
+        this.save(transaction)
+      }
+    })
+
+    // Look for transactions in `other` that match transactions in left
+    right.forEach(transaction => {
+      // Find the best matching transaction
+      const match = this.findBestTransaction(transaction, [...left.values()])
+
+      if (match === undefined) {
+        // Add transactions that are only in `other`
+        this.create(transaction)
+      } else {
+        // Remove matched transactions
+        left.delete(match.id)
+        right.delete(transaction.id)
+
+        // Merged transactions
+        this.mergeTransactions(match, transaction)
+        this.save(match)
+      }
+    })
+
+    return { left, right }
   }
 }
