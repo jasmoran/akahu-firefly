@@ -16,8 +16,9 @@ const TypeMapping: { [K in firefly.AccountType]?: AccountType } = {
   [firefly.AccountType.Mortgage]: AccountType.Liability
 }
 
-export async function importAccounts (accounts: Accounts): Promise<void> {
+export async function importAccounts (): Promise<Accounts> {
   const fireflyAccounts = await firefly.accounts()
+  const accounts = new Accounts()
 
   // Process each Firefly account
   fireflyAccounts.forEach(fireflyAccount => {
@@ -68,10 +69,13 @@ export async function importAccounts (accounts: Accounts): Promise<void> {
 
     accounts.create(account)
   })
+
+  return accounts
 }
 
-export async function importTransactions (accounts: Accounts, transactions: Transactions): Promise<void> {
+export async function importTransactions (accounts: Accounts): Promise<Transactions> {
   const fireflyTransactions = await firefly.transactions()
+  const transactions = new Transactions()
 
   // Process each Firefly transaction
   fireflyTransactions.forEach(fireflyTransaction => {
@@ -110,4 +114,6 @@ export async function importTransactions (accounts: Accounts, transactions: Tran
 
     transactions.create(transaction)
   })
+
+  return transactions
 }
