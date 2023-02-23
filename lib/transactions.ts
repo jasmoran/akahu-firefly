@@ -33,12 +33,9 @@ export interface Transaction {
 
 export class Transactions {
   private static counter = 0
-  private readonly transactions: Map<number, Transaction> = new Map()
-  private readonly fireflyIdIndex: Map<number, Transaction> = new Map()
-  private readonly akahuIdIndex: Map<string, Transaction> = new Map()
-
-  // Track modifications
-  private readonly originalTransactions: Map<number, Transaction> = new Map()
+  private transactions: Map<number, Transaction> = new Map()
+  private fireflyIdIndex: Map<number, Transaction> = new Map()
+  private akahuIdIndex: Map<string, Transaction> = new Map()
 
   private index (transaction: Transaction): void {
     this.transactions.set(transaction.id, transaction)
@@ -125,9 +122,32 @@ export class Transactions {
     return transaction
   }
 
-  public changes (): void {
+  public duplicate (): Transactions {
+    const newTransactions = new Transactions()
+
+    // Clone all transactions
+    newTransactions.transactions = new Map([...this.transactions].map(([id, trans]) => [id, this.clone(trans)]))
+
+    // Rebuild indexes using cloned transactions
+    newTransactions.fireflyIdIndex = new Map(
+      [...this.fireflyIdIndex].map(
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        ([id, trans]) => [id, newTransactions.transactions.get(trans.id)!]
+      )
+    )
+    newTransactions.akahuIdIndex = new Map(
+      [...this.akahuIdIndex].map(
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        ([id, trans]) => [id, newTransactions.transactions.get(trans.id)!]
+      )
+    )
+
+    return newTransactions
+  }
+
+  public changes (other: Transactions): void {
     this.transactions.forEach((b, id) => {
-      const diff = this.compare(this.originalTransactions.get(id), b)
+      const diff = this.compare(other.get(id), b)
       if (diff !== null) console.log(diff)
     })
   }
