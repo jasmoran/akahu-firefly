@@ -1,7 +1,6 @@
 import knex from 'knex'
 import Big from 'big.js'
 import type { Transaction as AkahuTransaction } from 'akahu'
-import { compareTwoStrings } from 'string-similarity'
 import { production } from '../knexfile'
 import { Account, AccountPair, Accounts, AccountType } from './accounts'
 import { Transaction, Transactions, TransactionType } from './transactions'
@@ -46,10 +45,7 @@ interface Row<T> {
   data: T
 }
 
-type IncompleteTransaction = Omit<Transaction, 'id'> & {
-  _id: string
-  _account: string
-}
+type IncompleteTransaction = Omit<Transaction, 'id'>
 
 function findAccountPair (accounts: Accounts, transaction: AkahuTransaction): AccountPair {
   let account: AccountPair | undefined
@@ -153,9 +149,7 @@ function transformTransaction (accounts: Accounts, transaction: AkahuTransaction
     destination,
     date: new Date(transaction.date),
     amount: Big(transaction.amount).abs(),
-    description: transaction.description,
-    _id: transaction._id,
-    _account: transaction._account
+    description: transaction.description
   }
 
   // Add foreign currency details if any available
@@ -178,73 +172,14 @@ function transformTransaction (accounts: Accounts, transaction: AkahuTransaction
   return newTrans
 }
 
-function findBestTransaction (transaction: IncompleteTransaction, transactions: IncompleteTransaction[]): IncompleteTransaction | undefined {
-  // Find transactions with the same source, destination and amount
-  const matches: Array<[number, number, IncompleteTransaction]> = transactions.filter(other => {
-    return transaction._account !== other._account &&
-      transaction.source.id === other.source.id &&
-      transaction.destination.id === other.destination.id &&
-      transaction.amount.eq(other.amount)
-  }).map(other => [
-    Math.abs(transaction.date.getTime() - other.date.getTime()), // Distance from target time
-    compareTwoStrings(transaction.description, other.description), // Distance from target description
-    other
-  ])
-
-  // Sort by date and then description
-  matches.sort((a, b) => {
-    const dateCompare = a[0] - b[0]
-    if (dateCompare !== 0) {
-      return dateCompare
-    } else {
-      return a[1] - b[1]
-    }
-  })
-
-  // Return best match
-  return matches[0]?.[2]
-}
-
-function mergeTransactions (a: Omit<Transaction, 'id'>, b: Omit<Transaction, 'id'>): void {
-  // Check essential details match
-  if (a.type !== b.type || a.source.id !== b.source.id || a.destination.id !== b.destination.id || !a.amount.eq(b.amount)) {
-    throw Error(`Can't merge - essential details of transactions don't match\n${Util.stringify(a)}\n${Util.stringify(b)}`)
-  }
-
-  // Check firefly IDs match
-  if ('fireflyId' in a && 'fireflyId' in b && a.fireflyId !== b.fireflyId) {
-    throw Error(`Can't merge - firefly IDs don't match\n${Util.stringify(a)}\n${Util.stringify(b)}`)
-  }
-
-  // Check foreign amount details match
-  if ('foreignAmount' in a && 'foreignAmount' in b && !a.foreignAmount.eq(b.foreignAmount)) {
-    throw Error(`Can't merge - foreign amounts don't match\n${Util.stringify(a)}\n${Util.stringify(b)}`)
-  }
-  if ('foreignCurrencyCode' in a && 'foreignCurrencyCode' in b && a.foreignCurrencyCode !== b.foreignCurrencyCode) {
-    throw Error(`Can't merge - foreign currency codes don't match\n${Util.stringify(a)}\n${Util.stringify(b)}`)
-  }
-
-  // Update transaction a from transaction b
-  a.fireflyId ??= b.fireflyId
-  a.akahuIds = new Set([...a.akahuIds, ...b.akahuIds])
-  a.description = `${a.description} - ${b.description}`
-  a.date ??= b.date
-  if ('foreignAmount' in b) a.foreignAmount ??= b.foreignAmount
-  if ('foreignCurrencyCode' in b) a.foreignCurrencyCode ??= b.foreignCurrencyCode
-  if ('categoryName' in b) a.categoryName ??= b.categoryName
-
-  // Use transaction B's date if it has the transactio time set
-  if (b.date.getMinutes() !== 0 || b.date.getHours() !== 0) {
-    a.date = b.date
-  }
-}
-
-export async function importTransactions (accounts: Accounts, transactions: Transactions): Promise<void> {
+export async function importTransactions (accounts: Accounts): Promise<Transactions> {
   const db = knex(production)
   const transactionsTable = db<Row<AkahuTransaction>, any>('akahu_transactions')
   const akahuTransactions = await transactionsTable.pluck('data')
 
-  const internalTransactions: Map<string, IncompleteTransaction> = new Map()
+  const positive = new Transactions()
+  const negative = new Transactions()
+  const normalTransactions: IncompleteTransaction[] = []
 
   akahuTransactions.forEach(akahuTransaction => {
     const transaction = transformTransaction(accounts, akahuTransaction)
@@ -252,31 +187,29 @@ export async function importTransactions (accounts: Accounts, transactions: Tran
     // Detect if this is an internal transfer of funds
     if (transaction.source.akahuId !== undefined && transaction.destination.akahuId !== undefined &&
       transaction.source.akahuId.startsWith('acc_') && transaction.destination.akahuId.startsWith('acc_')) {
-      internalTransactions.set(transaction._id, transaction)
+      if (akahuTransaction.amount < 0) {
+        negative.create(transaction)
+      } else {
+        positive.create(transaction)
+      }
     } else {
-      transactions.create(transaction)
+      normalTransactions.push(transaction)
     }
   })
 
   // Transfers between our accounts will result in two transactions,
-  // one form the source account and one from the destination account.
+  // one from the source account and one from the destination account.
   // Find these pairs and merge the two transactions together.
-  internalTransactions.forEach(transaction => {
-    // Find the best matching transaction
-    const match = findBestTransaction(transaction, [...internalTransactions.values()])
+  const remainders = positive.merge(negative)
 
-    // Error if search failed
-    if (match === undefined) {
-      throw Error(`Could not find matching transaction for ${Util.stringify(transaction)}`)
-    }
+  // Error if there are any unmatched transactions
+  const unmatched = [...remainders.left.values(), ...remainders.right.values()]
+  if (unmatched.length !== 0) {
+    throw Error(`Could not find matching transactions for ${Util.stringify(unmatched)}`)
+  }
 
-    // Remove paired transactions from internalTransactions
-    internalTransactions.delete(match._id)
-    internalTransactions.delete(transaction._id)
+  // Add normal transactions to positive
+  normalTransactions.forEach(transaction => positive.create(transaction))
 
-    mergeTransactions(transaction, match)
-
-    // Add merged transaction to transaction store
-    transactions.create(transaction)
-  })
+  return positive
 }

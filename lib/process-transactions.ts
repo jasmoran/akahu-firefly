@@ -20,6 +20,6 @@ export class ProcessTransactions {
   }
 
   public async processTransactions (): Promise<void> {
-    await akahuImport.importTransactions(this.accounts, this.transactions)
+    await akahuImport.importTransactions(this.accounts)
   }
 }
