@@ -195,7 +195,7 @@ export class Transactions {
     // Find transactions with the same source, destination and amount
     const matches = transactions.filter(other => {
       // Check firefly IDs match
-      if ('fireflyId' in transaction && 'fireflyId' in other && transaction.fireflyId !== other.fireflyId) {
+      if (transaction.fireflyId !== undefined && other.fireflyId !== undefined && transaction.fireflyId !== other.fireflyId) {
         return false
       }
 
