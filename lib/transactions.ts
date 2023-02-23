@@ -152,40 +152,79 @@ export class Transactions {
     })
   }
 
-  private compare (a: Transaction | undefined, b: Transaction): Partial<Transaction> | null {
+  private compare (a: Transaction | undefined, b: Transaction): [Partial<Transaction>, Partial<Transaction>] | null {
     // Return whole transaction if it is newly created
     if (a === undefined) {
-      return b
+      return [{}, b]
     }
 
-    const result: any = {}
+    const left: Partial<Transaction> = {}
+    const right: Partial<Transaction> = {}
     let different = false
 
-    // Loop through all properties and compare them
-    let key: keyof Transaction
-    for (key in b) {
-      const aValue = a[key]
-      const bValue = b[key]
-      let equal: boolean
-      if (aValue instanceof Big && bValue instanceof Big) {
-        equal = aValue.eq(bValue)
-      } else if (aValue instanceof Date && bValue instanceof Date) {
-        equal = aValue.getTime() === bValue.getTime()
-      } else if (aValue instanceof Object && bValue instanceof Object && 'id' in aValue && 'id' in bValue) {
-        equal = aValue.id === bValue.id
-      } else {
-        equal = aValue === bValue
-      }
-      if (!equal) {
-        result[key] = bValue
-        different = true
-      }
+    if (a.type !== b.type) {
+      left.type = a.type
+      right.type = b.type
+      different = true
+    }
+    if (a.fireflyId !== b.fireflyId) {
+      left.fireflyId = a.fireflyId
+      right.fireflyId = b.fireflyId
+      different = true
+    }
+    if ([...a.akahuIds].sort().join(',') !== [...b.akahuIds].sort().join(',')) {
+      left.akahuIds = a.akahuIds
+      right.akahuIds = b.akahuIds
+      different = true
+    }
+    if (a.description !== b.description) {
+      left.description = a.description
+      right.description = b.description
+      different = true
+    }
+    if (a.date.getTime() !== b.date.getTime()) {
+      left.date = a.date
+      right.date = b.date
+      different = true
+    }
+    if (!a.amount.eq(b.amount)) {
+      left.amount = a.amount
+      right.amount = b.amount
+      different = true
+    }
+    if (a.source.id !== b.source.id) {
+      left.source = a.source
+      right.source = b.source
+      different = true
+    }
+    if (a.destination.id !== b.destination.id) {
+      left.destination = a.destination
+      right.destination = b.destination
+      different = true
+    }
+    if ((a.foreignAmount === undefined && b.foreignAmount !== undefined) ||
+      (a.foreignAmount !== undefined && b.foreignAmount === undefined) ||
+      (a.foreignAmount !== undefined && b.foreignAmount !== undefined && !a.foreignAmount.eq(b.foreignAmount))) {
+      if ('foreignAmount' in a) left.foreignAmount = a.foreignAmount
+      if ('foreignAmount' in b) right.foreignAmount = b.foreignAmount
+      different = true
+    }
+    if (a.foreignCurrencyCode !== b.foreignCurrencyCode) {
+      if ('foreignCurrencyCode' in a) left.foreignCurrencyCode = a.foreignCurrencyCode
+      if ('foreignCurrencyCode' in b) right.foreignCurrencyCode = b.foreignCurrencyCode
+      different = true
+    }
+    if (a.categoryName !== b.categoryName) {
+      if ('categoryName' in a) left.categoryName = a.categoryName
+      if ('categoryName' in b) right.categoryName = b.categoryName
+      different = true
     }
 
     // Return changed properties or null
     if (different) {
-      result.id = b.id
-      return result as Partial<Transaction>
+      left.id = a.id
+      right.id = b.id
+      return [left, right]
     } else {
       return null
     }
