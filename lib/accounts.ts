@@ -272,30 +272,52 @@ export class Accounts {
     })
   }
 
-  private compare (a: Account | undefined, b: Account): Partial<Account> | null {
+  private compare (a: Account | undefined, b: Account): [Partial<Account>, Partial<Account>] | null {
     // Return whole account if it is newly created
     if (a === undefined) {
-      return b
+      return [{}, b]
     }
 
-    const result: any = {}
+    const left: Partial<Account> = {}
+    const right: Partial<Account> = {}
     let different = false
 
-    // Loop through all properties and compare them
-    let key: keyof Account
-    for (key in b) {
-      const aValue = a[key]
-      const bValue = b[key]
-      if (aValue !== bValue) {
-        result[key] = bValue
-        different = true
-      }
+    if (a.fireflyId !== b.fireflyId) {
+      left.fireflyId = a.fireflyId
+      right.fireflyId = b.fireflyId
+      different = true
+    }
+    if (a.akahuId !== b.akahuId) {
+      left.akahuId = a.akahuId
+      right.akahuId = b.akahuId
+      different = true
+    }
+    if (a.name !== b.name) {
+      left.name = a.name
+      right.name = b.name
+      different = true
+    }
+    if (a.type !== b.type) {
+      left.type = a.type
+      right.type = b.type
+      different = true
+    }
+    if ([...a.bankNumbers].sort().join(',') !== [...b.bankNumbers].sort().join(',')) {
+      left.bankNumbers = a.bankNumbers
+      right.bankNumbers = b.bankNumbers
+      different = true
+    }
+    if ([...a.alternateNames].sort().join(',') !== [...b.alternateNames].sort().join(',')) {
+      left.alternateNames = a.alternateNames
+      right.alternateNames = b.alternateNames
+      different = true
     }
 
     // Return changed properties or null
     if (different) {
-      result.fireflyId = b.fireflyId
-      return result as Partial<Account>
+      left.id = a.id
+      right.id = b.id
+      return [left, right]
     } else {
       return null
     }
