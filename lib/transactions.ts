@@ -263,7 +263,7 @@ export class Transactions {
       date: Math.abs(transaction.date.getTime() - other.date.getTime()), // Similarity to target date
       description: compareTwoStrings(transaction.description, other.description), // Similarity to target description
       transaction: other
-    }))
+    })).filter(x => x.date < 3 * 24 * 60 * 60 * 1000) // Ensure transaction is within 3 days of target
 
     // Sort by date and then description
     similarities.sort((a, b) => {
