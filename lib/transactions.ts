@@ -230,7 +230,11 @@ export class Transactions {
     }
   }
 
-  private findBestTransaction (transaction: Transaction, transactions: Transaction[]): Transaction | undefined {
+  private findBestTransaction (
+    transaction: Transaction,
+    transactions: Transaction[],
+    compare: (a: Transaction, b: Transaction) => boolean
+  ): Transaction | undefined {
     // Find transactions with the same source, destination and amount
     const matches = transactions.filter(other => {
       // Check firefly IDs match
@@ -249,8 +253,12 @@ export class Transactions {
       return transaction.type === other.type &&
         transaction.source.id === other.source.id &&
         transaction.destination.id === other.destination.id &&
-        transaction.amount.eq(other.amount)
+        transaction.amount.eq(other.amount) &&
+        compare(transaction, other)
     })
+
+    // Return early if there are 0 or 1 matches
+    if (matches.length < 2) return matches[0]
 
     type Similarities = Array<{
       date: number
@@ -306,7 +314,10 @@ export class Transactions {
    * @param other Other set of transactions
    * @returns {Object} Lists of transactions that are unique to the left and right hand sides of the merge
    */
-  public merge (other: Transactions): { left: Map<number, Transaction>, right: Map<number, Transaction> } {
+  public merge (
+    other: Transactions,
+    compare: (a: Transaction, b: Transaction) => boolean = _ => true
+  ): { left: Map<number, Transaction>, right: Map<number, Transaction> } {
     // Clone transaction maps
     const left: Map<number, Transaction> = new Map(this.transactions)
     const right: Map<number, Transaction> = new Map(other.transactions)
@@ -314,7 +325,7 @@ export class Transactions {
     // Look for transactions in left that match transactions in `other`
     left.forEach(transaction => {
       // Find the best matching transaction
-      const match = this.findBestTransaction(transaction, [...right.values()])
+      const match = this.findBestTransaction(transaction, [...right.values()], compare)
 
       // Merge the two transactions if a match was found
       if (match !== undefined) {
@@ -331,7 +342,7 @@ export class Transactions {
     // Look for transactions in `other` that match transactions in left
     right.forEach(transaction => {
       // Find the best matching transaction
-      const match = this.findBestTransaction(transaction, [...left.values()])
+      const match = this.findBestTransaction(transaction, [...left.values()], compare)
 
       if (match === undefined) {
         // Add transactions that are only in `other`
