@@ -303,7 +303,6 @@ export class Transactions {
     // Update transaction a from transaction b
     a.fireflyId ??= b.fireflyId
     a.akahuIds = new Set([...a.akahuIds, ...b.akahuIds])
-    a.description = `${a.description} - ${b.description}`
     a.date ??= b.date
     if ('foreignAmount' in b) a.foreignAmount ??= b.foreignAmount
     if ('foreignCurrencyCode' in b) a.foreignCurrencyCode ??= b.foreignCurrencyCode
@@ -325,7 +324,8 @@ export class Transactions {
    */
   public merge (
     other: Transactions,
-    compare: (a: Transaction, b: Transaction) => boolean = _ => true
+    compare: (a: Transaction, b: Transaction) => boolean = _ => true,
+    merge: (a: Transaction, b: Transaction) => void = _ => _
   ): { left: Map<number, Transaction>, right: Map<number, Transaction> } {
     // Clone transaction maps
     const left: Map<number, Transaction> = new Map(this.transactions)
@@ -344,6 +344,7 @@ export class Transactions {
 
         // Merged transactions
         this.mergeTransactions(transaction, match)
+        merge(transaction, match)
         this.save(transaction)
       }
     })
@@ -363,6 +364,7 @@ export class Transactions {
 
         // Merged transactions
         this.mergeTransactions(match, transaction)
+        merge(match, transaction)
         this.save(match)
       }
     })

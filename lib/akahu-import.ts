@@ -203,7 +203,10 @@ export async function importTransactions (accounts: Accounts): Promise<Transacti
   // Transfers between our accounts will result in two transactions,
   // one from the source account and one from the destination account.
   // Find these pairs and merge the two transactions together.
-  const remainders = positive.merge(negative)
+  const remainders = positive.merge(negative, _ => true, (a: Transaction, b: Transaction) => {
+    // Combine the two descriptions
+    a.description = `${a.description} - ${b.description}`
+  })
 
   // Error if there are any unmatched transactions
   const unmatched = [...remainders.left.values(), ...remainders.right.values()]
