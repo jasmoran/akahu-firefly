@@ -152,14 +152,17 @@ function transformTransaction (accounts: Accounts, transaction: AkahuTransaction
     description: transaction.description
   }
 
-  // Add foreign currency details if any available
   if ('meta' in transaction) {
+    // Add foreign currency details if any available
     const conversion: CurrencyConversion | undefined = (transaction.meta.conversion as unknown) as CurrencyConversion | undefined
     if (conversion !== undefined) {
       newTrans.foreignAmount = Big(conversion.amount).abs()
       newTrans.foreignCurrencyCode = conversion.currency
       // TODO: Store fee/rate
     }
+
+    // Strip reference, code and particulars from description
+    newTrans.description = newTrans.description.replace(transaction.meta.reference ?? '', '').replace(transaction.meta.code ?? '', '').replace(transaction.meta.particulars ?? '', '').trim()
   }
 
   // Use personal finance group as category
