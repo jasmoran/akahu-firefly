@@ -145,11 +145,13 @@ export class Transactions {
     return newTransactions
   }
 
-  public changes (other: Transactions): void {
+  public changes (other: Transactions): Array<[Partial<Transaction>, Partial<Transaction>]> {
+    const changes: Array<[Partial<Transaction>, Partial<Transaction>]> = []
     this.transactions.forEach((b, id) => {
       const diff = this.compare(other.get(id), b)
-      if (diff !== null) console.log(diff)
+      if (diff !== null) changes.push(diff)
     })
+    return changes
   }
 
   private compare (a: Transaction | undefined, b: Transaction): [Partial<Transaction>, Partial<Transaction>] | null {
