@@ -31,6 +31,12 @@ export interface Transaction {
   categoryName?: string
 }
 
+type TransactionChanges = {
+  [P in keyof Transaction]?: Transaction[P]
+} & {
+  id: number
+}
+
 export class Transactions {
   private static counter = 0
   private transactions: Map<number, Transaction> = new Map()
@@ -145,8 +151,8 @@ export class Transactions {
     return newTransactions
   }
 
-  public changes (other: Transactions): Array<[Partial<Transaction>, Partial<Transaction>]> {
-    const changes: Array<[Partial<Transaction>, Partial<Transaction>]> = []
+  public changes (other: Transactions): Array<[Partial<Transaction>, TransactionChanges]> {
+    const changes: Array<[Partial<Transaction>, TransactionChanges]> = []
     this.transactions.forEach((b, id) => {
       const diff = this.compare(other.get(id), b)
       if (diff !== null) changes.push(diff)
@@ -154,7 +160,7 @@ export class Transactions {
     return changes
   }
 
-  private compare (a: Transaction | undefined, b: Transaction): [Partial<Transaction>, Partial<Transaction>] | null {
+  private compare (a: Transaction | undefined, b: Transaction): [Partial<Transaction>, TransactionChanges] | null {
     // Return whole transaction if it is newly created
     if (a === undefined) {
       return [{}, b]
@@ -224,9 +230,10 @@ export class Transactions {
 
     // Return changed properties or null
     if (different) {
-      left.id = a.id
-      right.id = b.id
-      return [left, right]
+      return [
+        { ...left, id: a.id },
+        { ...right, id: b.id }
+      ]
     } else {
       return null
     }
