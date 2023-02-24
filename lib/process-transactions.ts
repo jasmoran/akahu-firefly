@@ -1,4 +1,5 @@
 import * as fireflyImport from './firefly-import'
+import * as fireflyExport from './firefly-export'
 import * as akahuImport from './akahu-import'
 
 export class ProcessTransactions {
@@ -18,5 +19,18 @@ export class ProcessTransactions {
       // Check Akahu IDs match
       return [...a.akahuIds].sort().join(',') === [...b.akahuIds].sort().join(',')
     })
+
+    const basePath = process.env['FIREFLY_BASE_PATH']
+    if (basePath === undefined) {
+      throw new Error('$FIREFLY_BASE_PATH is not set')
+    }
+
+    const apiKey = process.env['FIREFLY_API_KEY']
+    if (apiKey === undefined) {
+      throw new Error('$FIREFLY_API_KEY is not set')
+    }
+
+    console.log('Exporting transactions to Firefly')
+    await fireflyExport.exportTransactions(basePath, apiKey, fireflyTransactions, mergedTransactions)
   }
 }
