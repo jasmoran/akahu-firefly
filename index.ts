@@ -1,7 +1,12 @@
 import knex from 'knex'
 import type { Knex } from 'knex'
 import { production } from './knexfile'
-import { AkahuClient, Account, Transaction, TransactionQueryParams } from 'akahu'
+import { AkahuClient } from 'akahu'
+import type { Account, Transaction, TransactionQueryParams } from 'akahu'
+
+import * as fireflyImport from './lib/firefly-import'
+import * as fireflyExport from './lib/firefly-export'
+import * as akahuImport from './lib/akahu-import'
 
 interface Row<T> {
   id: string
@@ -55,6 +60,31 @@ async function main (): Promise<void> {
     await updateAkahuAccounts(accountsTable, akahu, userToken)
     await updateAkahuTransactions(transactionsTable, akahu, userToken)
   }
+
+  console.log('Importing Firefly accounts')
+  const accounts = await fireflyImport.importAccounts()
+
+  console.log('Importing Firefly transactions')
+  const transactions = await fireflyImport.importTransactions(accounts)
+  const originalTransactions = transactions.duplicate()
+
+  console.log('Importing Akahu transactions')
+  const akahuTransactions = await akahuImport.importTransactions(accounts)
+
+  console.log('Merging transactions')
+  transactions.merge(akahuTransactions, (a, b) => {
+    // Check Akahu IDs match
+    return [...a.akahuIds].sort().join(',') === [...b.akahuIds].sort().join(',')
+  })
+
+  const basePath = process.env['FIREFLY_BASE_PATH']
+  if (basePath === undefined) throw new Error('$FIREFLY_BASE_PATH is not set')
+
+  const apiKey = process.env['FIREFLY_API_KEY']
+  if (apiKey === undefined) throw new Error('$FIREFLY_API_KEY is not set')
+
+  console.log('Exporting transactions to Firefly')
+  await fireflyExport.exportTransactions(basePath, apiKey, originalTransactions, transactions)
 
   console.log('Finished')
 }
