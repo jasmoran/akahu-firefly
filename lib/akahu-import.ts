@@ -105,7 +105,7 @@ function transformTransaction (accounts: Accounts, transaction: AkahuTransaction
 
       // TODO: Enhance with data from this transaction
       destination = accounts.create({
-        fireflyId: other.fireflyId,
+        fireflyId: undefined,
         akahuId: other.akahuId,
         name: other.name,
         type: AccountType.Expense,
@@ -124,7 +124,7 @@ function transformTransaction (accounts: Accounts, transaction: AkahuTransaction
 
       // TODO: Enhance with data from this transaction
       source = accounts.create({
-        fireflyId: other.fireflyId,
+        fireflyId: undefined,
         akahuId: other.akahuId,
         name: other.name,
         type: AccountType.Revenue,
