@@ -162,40 +162,39 @@ export class Accounts {
     })
   }
 
-  private clone (account: Account | undefined): Account | undefined {
-    if (account === undefined) {
-      return undefined
-    } else {
-      return { ...account }
-    }
+  private clone (account: Account): Account {
+    const clone = { ...account }
+    clone.bankNumbers = new Set(clone.bankNumbers)
+    clone.alternateNames = new Set(clone.alternateNames)
+    return clone
   }
 
-  private clonePair (pair: AccountPair | undefined): AccountPair | undefined {
-    if (pair === undefined) {
-      return undefined
-    } else {
-      return {
-        source: this.clone(pair.source),
-        destination: this.clone(pair.destination)
-      }
+  private clonePair (pair: AccountPair): AccountPair {
+    return {
+      source: pair.source === undefined ? undefined : this.clone(pair.source),
+      destination: pair.destination === undefined ? undefined : this.clone(pair.destination)
     }
   }
 
   public get (id: number): Account | undefined {
-    return this.clone(this.accounts.get(id))
+    const res = this.accounts.get(id)
+    return res === undefined ? undefined : this.clone(res)
   }
 
   public getByAkahuId (akahuId: string): AccountPair | undefined {
-    return this.clonePair(this.akahuIdIndex.get(akahuId))
+    const res = this.akahuIdIndex.get(akahuId)
+    return res === undefined ? undefined : this.clonePair(res)
   }
 
   public getByFireflyId (fireflyId: number): AccountPair | undefined {
-    return this.clonePair(this.fireflyIdIndex.get(fireflyId))
+    const res = this.fireflyIdIndex.get(fireflyId)
+    return res === undefined ? undefined : this.clonePair(res)
   }
 
   public getByBankNumber (bankNumber: string): AccountPair | undefined {
     const formatted = Accounts.formatBankNumber(bankNumber)
-    return this.clonePair(this.bankNumberIndex.get(formatted))
+    const res = this.bankNumberIndex.get(formatted)
+    return res === undefined ? undefined : this.clonePair(res)
   }
 
   private normalizeName (name: string): string {
@@ -206,7 +205,8 @@ export class Accounts {
   }
 
   public getByName (name: string): AccountPair | undefined {
-    return this.clonePair(this.nameIndex.get(this.normalizeName(name)))
+    const res = this.nameIndex.get(this.normalizeName(name))
+    return res === undefined ? undefined : this.clonePair(res)
   }
 
   public getByNameFuzzy (source: string): [AccountPair, number] {
@@ -225,7 +225,7 @@ export class Accounts {
       }
     }
 
-    bestMatch = this.clonePair(bestMatch)
+    bestMatch = bestMatch === undefined ? undefined : this.clonePair(bestMatch)
 
     if (bestMatch === undefined) throw Error(`Could not find an account name to match ${source}`)
 
