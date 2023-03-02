@@ -36,6 +36,8 @@ async function updateAkahuTransactions (
 }
 
 async function main (): Promise<void> {
+  console.log('Starting')
+
   const db = knex(production)
   const accountsTable = db<Row<Account>, any>('akahu_accounts')
   const transactionsTable = db<Row<Transaction>, any>('akahu_transactions')
@@ -49,10 +51,14 @@ async function main (): Promise<void> {
   const userToken = process.env['AKAHU_USER_TOKEN']
   if (userToken === undefined) throw new Error('$AKAHU_USER_TOKEN is not set')
 
-  await updateAkahuAccounts(accountsTable, akahu, userToken)
-  await updateAkahuTransactions(transactionsTable, akahu, userToken)
+  if (process.env['LOAD_AKAHU_DATA'] === 'true') {
+    await updateAkahuAccounts(accountsTable, akahu, userToken)
+    await updateAkahuTransactions(transactionsTable, akahu, userToken)
+  }
 
   console.log('Finished')
 }
 
-void main().then(() => process.exit())
+void main().then(() => setTimeout(() => {
+  process.exit()
+}, 10))
