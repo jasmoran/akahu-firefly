@@ -26,11 +26,11 @@ export interface Account {
 
 export class Accounts {
   private static counter = 0
-  private accounts: Map<number, Account> = new Map()
-  private fireflyIdIndex: Map<number, AccountPair> = new Map()
-  private akahuIdIndex: Map<string, AccountPair> = new Map()
-  private bankNumberIndex: Map<string, AccountPair> = new Map()
-  private nameIndex: Map<string, AccountPair> = new Map()
+  private readonly accounts: Map<number, Account> = new Map()
+  private readonly fireflyIdIndex: Map<number, AccountPair> = new Map()
+  private readonly akahuIdIndex: Map<string, AccountPair> = new Map()
+  private readonly bankNumberIndex: Map<string, AccountPair> = new Map()
+  private readonly nameIndex: Map<string, AccountPair> = new Map()
 
   // Formats a bank account string:
   // 2 digit Bank Number
@@ -257,11 +257,9 @@ export class Accounts {
 
   public duplicate (): Accounts {
     const newAccounts = new Accounts()
-    newAccounts.accounts = this.accounts
-    newAccounts.fireflyIdIndex = this.fireflyIdIndex
-    newAccounts.akahuIdIndex = this.akahuIdIndex
-    newAccounts.bankNumberIndex = this.bankNumberIndex
-    newAccounts.nameIndex = this.nameIndex
+    for (const account of this.accounts.values()) {
+      newAccounts.index(this.clone(account))
+    }
     return newAccounts
   }
 
