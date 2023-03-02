@@ -24,6 +24,12 @@ export interface Account {
   alternateNames: Set<string>
 }
 
+type AccountChanges = {
+  [P in keyof Account]?: Account[P]
+} & {
+  id: number
+}
+
 export class Accounts {
   private static counter = 0
   private readonly accounts: Map<number, Account> = new Map()
@@ -263,14 +269,16 @@ export class Accounts {
     return newAccounts
   }
 
-  public changes (other: Accounts): void {
+  public changes (other: Accounts): Array<[Partial<Account>, AccountChanges]> {
+    const changes: Array<[Partial<Account>, AccountChanges]> = []
     this.accounts.forEach((b, id) => {
       const diff = this.compare(other.get(id), b)
-      if (diff !== null) console.log(diff)
+      if (diff !== null) changes.push(diff)
     })
+    return changes
   }
 
-  private compare (a: Account | undefined, b: Account): [Partial<Account>, Partial<Account>] | null {
+  private compare (a: Account | undefined, b: Account): [Partial<Account>, AccountChanges] | null {
     // Return whole account if it is newly created
     if (a === undefined) {
       return [{}, b]
@@ -313,9 +321,10 @@ export class Accounts {
 
     // Return changed properties or null
     if (different) {
-      left.id = a.id
-      right.id = b.id
-      return [left, right]
+      return [
+        { ...left, id: a.id },
+        { ...right, id: b.id }
+      ]
     } else {
       return null
     }
