@@ -18,7 +18,7 @@ export enum TransactionType {
 // Transfer transactions must have a second akahuId
 export interface Transaction {
   id: number
-  type: TransactionType
+  type?: TransactionType | undefined
   fireflyId: number | undefined
   akahuIds: Set<string>
   description: string
@@ -259,8 +259,7 @@ export class Transactions {
         return false
       }
 
-      return transaction.type === other.type &&
-        transaction.source.id === other.source.id &&
+      return transaction.source.id === other.source.id &&
         transaction.destination.id === other.destination.id &&
         transaction.amount.eq(other.amount) &&
         compare(transaction, other)

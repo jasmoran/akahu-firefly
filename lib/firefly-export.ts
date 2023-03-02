@@ -31,6 +31,8 @@ export async function exportTransactions (basePath: string, apiKey: string, curr
     const transaction = modified.get(changes.id)
     if (transaction === undefined) throw Error('Changes returned an invalid transaction ID - impossible')
 
+    if (transaction.type === undefined) throw Error('FIXME: Transaction type is undefined')
+
     // Construct update request body
     const update: Update = {
       type: (changes.type as string).toLowerCase() as TransactionTypeProperty,

@@ -3,35 +3,8 @@ import Big from 'big.js'
 import type { Transaction as AkahuTransaction } from 'akahu'
 import { production } from '../knexfile'
 import { Account, AccountPair, Accounts, AccountType } from './accounts'
-import { Transaction, Transactions, TransactionType } from './transactions'
+import { Transaction, Transactions } from './transactions'
 import { Util } from './util'
-
-const transactionMapping = {
-  [AccountType.Asset]: {
-    [AccountType.Asset]: TransactionType.Transfer,
-    [AccountType.Liability]: TransactionType.Withdrawal,
-    [AccountType.Expense]: TransactionType.Withdrawal,
-    [AccountType.Revenue]: undefined
-  },
-  [AccountType.Liability]: {
-    [AccountType.Asset]: TransactionType.Deposit,
-    [AccountType.Liability]: TransactionType.Transfer,
-    [AccountType.Expense]: TransactionType.Withdrawal,
-    [AccountType.Revenue]: undefined
-  },
-  [AccountType.Expense]: {
-    [AccountType.Asset]: undefined,
-    [AccountType.Liability]: undefined,
-    [AccountType.Expense]: undefined,
-    [AccountType.Revenue]: undefined
-  },
-  [AccountType.Revenue]: {
-    [AccountType.Asset]: TransactionType.Deposit,
-    [AccountType.Liability]: TransactionType.Deposit,
-    [AccountType.Expense]: undefined,
-    [AccountType.Revenue]: undefined
-  }
-}
 
 interface CurrencyConversion {
   currency: string
@@ -138,13 +111,9 @@ function transformTransaction (accounts: Accounts, transaction: AkahuTransaction
     destination = account
   }
 
-  const type = transactionMapping[source.type][destination.type]
-  if (type === undefined) throw Error(`Invalid transaction type ${source.type} -> ${destination.type}`)
-
   const newTrans: IncompleteTransaction = {
     fireflyId: undefined,
     akahuIds: new Set([transaction._id]),
-    type,
     source,
     destination,
     date: new Date(transaction.date),
