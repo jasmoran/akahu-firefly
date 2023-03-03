@@ -22,7 +22,7 @@ export interface Account {
   akahuId: string | undefined
   name: string
   bankNumbers: Set<string>
-  alternateNames: Set<string>
+  alternateNames: Map<string, string>
 }
 
 type AccountChanges = {
@@ -84,11 +84,10 @@ export class Accounts {
     }
 
     // Add account to nameIndex (both main and alternate names)
-    account.alternateNames.forEach(name => {
-      name = this.normalizeName(name)
-      const existing = this.nameIndex.get(name)
+    account.alternateNames.forEach((name, normName) => {
+      const existing = this.nameIndex.get(normName)
       if (existing === undefined) {
-        this.nameIndex.set(name, account)
+        this.nameIndex.set(normName, account)
       } else {
         console.error(`Transaction name ${name} duplicated in ${Util.stringify(existing)} and ${Util.stringify(account)}`)
       }
@@ -120,9 +119,9 @@ export class Accounts {
     }
 
     // Remove account from nameIndex
-    account.alternateNames.forEach(name => {
-      this.nameIndex.delete(this.normalizeName(name))
-    })
+    for (const normName of account.alternateNames.keys()) {
+      this.nameIndex.delete(normName)
+    }
 
     // Remove account from bankNumberIndex
     account.bankNumbers.forEach(bankNumber => {
@@ -133,7 +132,7 @@ export class Accounts {
   private clone (account: Account): Account {
     const clone = { ...account }
     clone.bankNumbers = new Set(clone.bankNumbers)
-    clone.alternateNames = new Set(clone.alternateNames)
+    clone.alternateNames = new Map(clone.alternateNames)
     return clone
   }
 
@@ -158,7 +157,7 @@ export class Accounts {
     return res === undefined ? undefined : this.clone(res)
   }
 
-  private normalizeName (name: string): string {
+  public normalizeName (name: string): string {
     return name.normalize('NFD')
       .replace(/\p{Diacritic}/gu, '')
       .toLowerCase()
@@ -268,7 +267,7 @@ export class Accounts {
       right.bankNumbers = b.bankNumbers
       different = true
     }
-    if ([...a.alternateNames].sort().join(',') !== [...b.alternateNames].sort().join(',')) {
+    if ([...a.alternateNames.values()].sort().join(',') !== [...b.alternateNames.values()].sort().join(',')) {
       left.alternateNames = a.alternateNames
       right.alternateNames = b.alternateNames
       different = true

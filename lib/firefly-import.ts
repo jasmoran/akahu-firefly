@@ -73,7 +73,7 @@ function mergeAccounts (a: Account, b: Omit<Account, 'id'>): Account {
     akahuId: a.akahuId ?? b.akahuId,
     name: a.name,
     bankNumbers: new Set([...a.bankNumbers, ...b.bankNumbers]),
-    alternateNames: new Set([...a.alternateNames, ...b.alternateNames])
+    alternateNames: new Map([...a.alternateNames, ...b.alternateNames])
   }
 }
 
@@ -106,8 +106,10 @@ export async function importAccounts (): Promise<Accounts> {
       akahuId,
       name,
       bankNumbers: new Set<string>(),
-      alternateNames: new Set([name])
+      alternateNames: new Map()
     }
+
+    account.alternateNames.set(accounts.normalizeName(name), name)
 
     // Add bank account numbers
     if (fireflyAccount.account_number !== null) {
@@ -128,7 +130,7 @@ export async function importAccounts (): Promise<Accounts> {
         ?.split('\n')
         ?.forEach(line => {
           const name = line.match(/`([^`]+)`/)?.[1]
-          if (name !== undefined) account.alternateNames.add(name)
+          if (name !== undefined) account.alternateNames.set(accounts.normalizeName(name), name)
         })
     }
 
