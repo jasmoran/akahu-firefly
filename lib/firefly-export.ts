@@ -1,6 +1,34 @@
 import * as firefly from 'firefly-iii-sdk-typescript'
-import type { TransactionTypeProperty } from 'firefly-iii-sdk-typescript'
+import { TransactionTypeProperty } from 'firefly-iii-sdk-typescript'
 import type { Transactions } from './transactions'
+import { Accounts, AccountType } from './accounts'
+
+const transactionMapping = {
+  [AccountType.Asset]: {
+    [AccountType.Asset]: TransactionTypeProperty.Transfer,
+    [AccountType.Liability]: TransactionTypeProperty.Withdrawal,
+    [AccountType.Expense]: TransactionTypeProperty.Withdrawal,
+    [AccountType.Revenue]: undefined
+  },
+  [AccountType.Liability]: {
+    [AccountType.Asset]: TransactionTypeProperty.Deposit,
+    [AccountType.Liability]: TransactionTypeProperty.Transfer,
+    [AccountType.Expense]: TransactionTypeProperty.Withdrawal,
+    [AccountType.Revenue]: undefined
+  },
+  [AccountType.Expense]: {
+    [AccountType.Asset]: undefined,
+    [AccountType.Liability]: undefined,
+    [AccountType.Expense]: undefined,
+    [AccountType.Revenue]: undefined
+  },
+  [AccountType.Revenue]: {
+    [AccountType.Asset]: TransactionTypeProperty.Deposit,
+    [AccountType.Liability]: TransactionTypeProperty.Deposit,
+    [AccountType.Expense]: undefined,
+    [AccountType.Revenue]: undefined
+  }
+}
 
 interface Update {
   type: TransactionTypeProperty
@@ -31,17 +59,24 @@ export async function exportTransactions (basePath: string, apiKey: string, curr
     const transaction = modified.get(changes.id)
     if (transaction === undefined) throw Error('Changes returned an invalid transaction ID - impossible')
 
-    if (transaction.type === undefined) throw Error('FIXME: Transaction type is undefined')
+    const source = transaction.source.source
+    if (source === undefined) throw Error('TODO: Create source account')
+
+    const destination = transaction.destination.destination
+    if (destination === undefined) throw Error('TODO: Create destination account')
+
+    const type = transactionMapping[source.type][destination.type]
+    if (type === undefined) throw Error(`Invalid transaction type ${source.type} -> ${destination.type}`)
 
     // Construct update request body
     const update: Update = {
-      type: (changes.type as string).toLowerCase() as TransactionTypeProperty,
+      type,
       external_id: [...transaction.akahuIds].sort().join(','),
       description: transaction.description,
       date: transaction.date.toISOString(),
       amount: transaction.amount.toString(),
-      source_id: transaction.source.fireflyId?.toString() ?? '0',
-      destination_id: transaction.destination.fireflyId?.toString() ?? '0'
+      source_id: source.fireflyId?.toString() ?? '0',
+      destination_id: destination.fireflyId?.toString() ?? '0'
     }
 
     // Set optional fields

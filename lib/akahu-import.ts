@@ -2,7 +2,7 @@ import knex from 'knex'
 import Big from 'big.js'
 import type { Transaction as AkahuTransaction } from 'akahu'
 import { production } from '../knexfile'
-import { Account, AccountPair, Accounts, AccountType } from './accounts'
+import type { Account, Accounts } from './accounts'
 import { Transaction, Transactions } from './transactions'
 import { Util } from './util'
 
@@ -20,8 +20,8 @@ interface Row<T> {
 
 type IncompleteTransaction = Omit<Transaction, 'id'>
 
-function findAccountPair (accounts: Accounts, transaction: AkahuTransaction): AccountPair {
-  let account: AccountPair | undefined
+function findAccount (accounts: Accounts, transaction: AkahuTransaction): Account {
+  let account: Account | undefined
 
   // Interest is a special case - match any account that contains the word interest
   if (transaction.description.toLowerCase().includes('interest')) {
@@ -62,52 +62,19 @@ function transformTransaction (accounts: Accounts, transaction: AkahuTransaction
   // transaction.type
 
   // Look up Akahu Account ID (acc_xxxxx)
-  const pair = accounts.getByAkahuId(transaction._account)
-  if (pair === undefined) throw Error(`Akahu account ${transaction._account} not set up`)
-  const account = pair.source ?? pair.destination
-  if (account === undefined) throw Error('Found invalid AccountPair')
-  if (account.type !== AccountType.Asset && account.type !== AccountType.Liability) throw Error(`User's account ${transaction._account} not configured as an asset or liability`)
+  const account = accounts.getByAkahuId(transaction._account)
+  if (account === undefined) throw Error(`Akahu account ${transaction._account} not set up`)
 
-  const findAccount = findAccountPair(accounts, transaction)
+  const foundAccount = findAccount(accounts, transaction)
 
   let source: Account, destination: Account
   if (transaction.amount < 0) {
-    if (findAccount.destination === undefined) {
-      const other = findAccount.source
-      if (other === undefined) throw Error('Found invalid AccountPair')
-
-      // TODO: Enhance with data from this transaction
-      destination = accounts.create({
-        fireflyId: undefined,
-        akahuId: other.akahuId,
-        name: other.name,
-        type: AccountType.Expense,
-        bankNumbers: other.bankNumbers,
-        alternateNames: other.alternateNames
-      })
-    } else {
-      destination = findAccount.destination
-    }
-
+    // TODO: Enhance with data from this transaction
     source = account
+    destination = foundAccount
   } else {
-    if (findAccount.source === undefined) {
-      const other = findAccount.destination
-      if (other === undefined) throw Error('Found invalid AccountPair')
-
-      // TODO: Enhance with data from this transaction
-      source = accounts.create({
-        fireflyId: undefined,
-        akahuId: other.akahuId,
-        name: other.name,
-        type: AccountType.Revenue,
-        bankNumbers: other.bankNumbers,
-        alternateNames: other.alternateNames
-      })
-    } else {
-      source = findAccount.source
-    }
-
+    // TODO: Enhance with data from this transaction
+    source = foundAccount
     destination = account
   }
 

@@ -3,22 +3,10 @@ import { compareTwoStrings } from 'string-similarity'
 import type { Account } from './accounts'
 import { Util } from './util'
 
-// List transaction types
-export enum TransactionType {
-  Withdrawal = 'Withdrawal',
-  Deposit = 'Deposit',
-  OpeningBalance = 'Opening balance',
-  Reconciliation = 'Reconciliation',
-  Invalid = 'Invalid',
-  LiabilityCredit = 'Liability credit',
-  Transfer = 'Transfer'
-}
-
 // Export Transaction type
 // Transfer transactions must have a second akahuId
 export interface Transaction {
   id: number
-  type?: TransactionType | undefined
   fireflyId: number | undefined
   akahuIds: Set<string>
   description: string
@@ -170,11 +158,6 @@ export class Transactions {
     const right: Partial<Transaction> = {}
     let different = false
 
-    if (a.type !== b.type) {
-      left.type = a.type
-      right.type = b.type
-      different = true
-    }
     if (a.fireflyId !== b.fireflyId) {
       left.fireflyId = a.fireflyId
       right.fireflyId = b.fireflyId
