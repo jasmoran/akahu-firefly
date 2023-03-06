@@ -125,7 +125,7 @@ export async function importAccounts (): Promise<Accounts> {
     if (fireflyAccount.notes !== null) {
       fireflyAccount
         .notes
-        .match(/\*\*Alternate names\*\*(\n-\s*`[^`]+`)+/g)
+        .match(firefly.ALT_NAMES_REGEX)
         ?.[0]
         ?.split('\n')
         ?.forEach(line => {

@@ -41,6 +41,7 @@ export interface Transaction {
   category_name: string | null
 }
 
+export const ALT_NAMES_REGEX = /\*\*Alternate names\*\*(\n-\s*`[^`]+`)+/
 // Fetch all accounts
 export async function accounts (): Promise<Account[]> {
   const db = knex(firefly)
