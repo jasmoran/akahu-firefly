@@ -2,6 +2,7 @@ import * as firefly from 'firefly-iii-sdk-typescript'
 import { TransactionTypeProperty } from 'firefly-iii-sdk-typescript'
 import type { Transactions } from './transactions'
 import { Accounts, AccountType } from './accounts'
+import { AKAHU_ID_REGEX, ALT_NAMES_REGEX } from './firefly'
 
 const transactionMapping = {
   [AccountType.Asset]: {
@@ -30,6 +31,12 @@ const transactionMapping = {
   }
 }
 
+interface UpdateAccount {
+  name: string
+  account_number: string
+  notes?: string
+}
+
 interface UpdateTransaction {
   type: TransactionTypeProperty
   external_id: string
@@ -41,6 +48,84 @@ interface UpdateTransaction {
   foreign_amount?: string
   foreign_currency_code?: string
   category_name?: string
+}
+
+function updateNotes (notes: string | undefined, akahuId: string | undefined, otherNames: string[]): string {
+  // Remove existing Akahu ID / Alternate names from notes
+  notes = (notes ?? '').replace(AKAHU_ID_REGEX, '').replace(ALT_NAMES_REGEX, '').trim()
+
+  // Add Akahu ID to bottom of notes
+  if (akahuId !== undefined) {
+    notes = `${notes}\n\n**Akahu ID** \`${akahuId}\``
+  }
+
+  // Add other names to bottom of list
+  if (otherNames.length > 0) {
+    const list = otherNames.map(name => `- \`${name.replaceAll('`', "'")}\``).join('\n')
+    notes = `${notes}\n\n**Alternate names**\n${list}`
+  }
+
+  return notes.trim()
+}
+
+export async function exportAccounts (basePath: string, apiKey: string, current: Accounts, modified: Accounts): Promise<void> {
+  const config = new firefly.Configuration({
+    apiKey,
+    basePath,
+    baseOptions: {
+      headers: { Authorization: `Bearer ${apiKey}` }
+    }
+  })
+  const factory = firefly.AccountsApiFactory(config)
+
+  // Process each Firefly account
+  for (const pair of modified.changes(current)) {
+    const changes = pair[1]
+    const account = modified.get(changes.id)
+    if (account === undefined) throw Error('Changes returned an invalid account ID - impossible')
+
+    // Remove primary name from alternateNames
+    const altNames = new Map(account.alternateNames)
+    altNames.delete(current.normalizeName(account.name))
+    const otherNames = [...altNames.values()]
+
+    // Construct update request body
+    const update: UpdateAccount = {
+      name: account.name,
+      account_number: [...account.bankNumbers].sort().join(',')
+    }
+
+    // Update or create accounts
+    try {
+      // Process source
+      if (account.source !== undefined) {
+        update.notes = updateNotes(account.source.notes, account.akahuId, otherNames)
+
+        if (account.source.fireflyId !== undefined) {
+          console.log(`Updating account ${account.source.fireflyId}`, changes)
+          await factory.updateAccount(account.source.fireflyId.toString(), update)
+        } else {
+          console.log('Creating account', changes)
+          await factory.storeAccount({ ...update, type: account.source.type })
+        }
+      }
+
+      // Process destination (if different from source)
+      if (account.destination !== undefined && account.source?.fireflyId !== account.destination.fireflyId) {
+        update.notes = updateNotes(account.destination.notes, account.akahuId, otherNames)
+
+        if (account.destination.fireflyId !== undefined) {
+          console.log(`Updating account ${account.destination.fireflyId}`, changes)
+          await factory.updateAccount(account.destination.fireflyId.toString(), update)
+        } else {
+          console.log('Creating account', changes)
+          await factory.storeAccount({ ...update, type: account.destination.type })
+        }
+      }
+    } catch (e: any) {
+      console.error(account, e?.response?.data)
+    }
+  }
 }
 
 export async function exportTransactions (basePath: string, apiKey: string, current: Transactions, modified: Transactions): Promise<void> {

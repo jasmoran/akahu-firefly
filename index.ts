@@ -63,6 +63,7 @@ async function main (): Promise<void> {
 
   console.log('Importing Firefly accounts')
   const accounts = await fireflyImport.importAccounts()
+  const originalAccounts = accounts.duplicate()
 
   console.log('Importing Firefly transactions')
   const transactions = await fireflyImport.importTransactions(accounts)
@@ -84,7 +85,7 @@ async function main (): Promise<void> {
   if (apiKey === undefined) throw new Error('$FIREFLY_API_KEY is not set')
 
   console.log('Exporting transactions to Firefly')
-  await fireflyExport.exportTransactions(basePath, apiKey, originalTransactions, transactions)
+  await fireflyExport.exportAccounts(basePath, apiKey, originalAccounts, accounts)
 
   console.log('Finished')
 }
