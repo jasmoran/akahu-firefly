@@ -42,6 +42,8 @@ export interface Transaction {
 }
 
 export const ALT_NAMES_REGEX = /\*\*Alternate names\*\*(\n-\s*`[^`]+`)+/
+export const AKAHU_ID_REGEX = /\*\*Akahu ID\*\*\s*`([^`]+)`/
+
 // Fetch all accounts
 export async function accounts (): Promise<Account[]> {
   const db = knex(firefly)
