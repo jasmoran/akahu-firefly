@@ -30,7 +30,7 @@ const transactionMapping = {
   }
 }
 
-interface Update {
+interface UpdateTransaction {
   type: TransactionTypeProperty
   external_id: string
   description: string
@@ -69,7 +69,7 @@ export async function exportTransactions (basePath: string, apiKey: string, curr
     if (type === undefined) throw Error(`Invalid transaction type ${source.type} -> ${destination.type}`)
 
     // Construct update request body
-    const update: Update = {
+    const update: UpdateTransaction = {
       type,
       external_id: [...transaction.akahuIds].sort().join(','),
       description: transaction.description,
