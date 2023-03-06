@@ -14,10 +14,12 @@ export interface Account {
   source?: {
     fireflyId: number
     type: AccountType
+    notes?: string | undefined
   } | undefined
   destination?: {
     fireflyId: number
     type: AccountType
+    notes?: string | undefined
   } | undefined
   akahuId: string | undefined
   name: string

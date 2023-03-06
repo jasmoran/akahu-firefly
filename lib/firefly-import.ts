@@ -94,9 +94,11 @@ export async function importAccounts (): Promise<Accounts> {
       akahuId = externalId
     }
 
+    const notes = fireflyAccount.notes ?? undefined
+
     // Set source & destination Firefly IDs
-    const source = type === AccountType.Expense ? undefined : { fireflyId: fireflyAccount.id, type }
-    const destination = type === AccountType.Revenue ? undefined : { fireflyId: fireflyAccount.id, type }
+    const source = type === AccountType.Expense ? undefined : { fireflyId: fireflyAccount.id, type, notes }
+    const destination = type === AccountType.Revenue ? undefined : { fireflyId: fireflyAccount.id, type, notes }
 
     // Create Account from Firefly data
     const name = fireflyAccount.name.trim()
