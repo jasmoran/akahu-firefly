@@ -159,7 +159,7 @@ export class Accounts implements Iterable<Account> {
     return res === undefined ? undefined : this.clone(res)
   }
 
-  public normalizeName (name: string): string {
+  public static normalizeName (name: string): string {
     return name.normalize('NFD')
       .replace(/\p{Diacritic}/gu, '')
       .toLowerCase()
@@ -167,7 +167,7 @@ export class Accounts implements Iterable<Account> {
   }
 
   public getByName (name: string): Account | undefined {
-    const res = this.nameIndex.get(this.normalizeName(name))
+    const res = this.nameIndex.get(Accounts.normalizeName(name))
     return res === undefined ? undefined : this.clone(res)
   }
 
@@ -176,7 +176,7 @@ export class Accounts implements Iterable<Account> {
     let bestRating = 0
 
     // Do a case-insensitive compare by lowering case
-    source = this.normalizeName(source)
+    source = Accounts.normalizeName(source)
 
     // Loop through all name-account pairs and find the best match
     for (const [name, account] of this.nameIndex.entries()) {

@@ -114,7 +114,7 @@ export async function importAccounts (): Promise<Accounts> {
       alternateNames: new Map()
     }
 
-    account.alternateNames.set(accounts.normalizeName(name), name)
+    account.alternateNames.set(Accounts.normalizeName(name), name)
 
     // Add bank account numbers
     if (fireflyAccount.account_number !== null) {
@@ -135,7 +135,7 @@ export async function importAccounts (): Promise<Accounts> {
         ?.split('\n')
         ?.forEach(line => {
           const name = line.match(/`([^`]+)`/)?.[1]
-          if (name !== undefined) account.alternateNames.set(accounts.normalizeName(name), name)
+          if (name !== undefined) account.alternateNames.set(Accounts.normalizeName(name), name)
         })
     }
 

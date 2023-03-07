@@ -1,7 +1,7 @@
 import * as firefly from 'firefly-iii-sdk-typescript'
 import { TransactionTypeProperty } from 'firefly-iii-sdk-typescript'
 import type { Transactions } from './transactions'
-import { Accounts, AccountType } from './accounts'
+import { Account, Accounts, AccountType } from './accounts'
 import { AKAHU_ID_REGEX, ALT_NAMES_REGEX } from './firefly'
 
 const transactionMapping = {
@@ -86,7 +86,7 @@ export async function exportAccounts (basePath: string, apiKey: string, current:
 
     // Remove primary name from alternateNames
     const altNames = new Map(account.alternateNames)
-    altNames.delete(current.normalizeName(account.name))
+    altNames.delete(Accounts.normalizeName(account.name))
     const otherNames = [...altNames.values()]
 
     // Construct update request body
