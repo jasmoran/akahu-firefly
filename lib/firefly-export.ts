@@ -1,6 +1,6 @@
 import * as firefly from 'firefly-iii-sdk-typescript'
 import { TransactionTypeProperty } from 'firefly-iii-sdk-typescript'
-import type { Transactions } from './transactions'
+import type { Transaction, Transactions } from './transactions'
 import { Account, Accounts, AccountType } from './accounts'
 import { AKAHU_ID_REGEX, ALT_NAMES_REGEX } from './firefly'
 
@@ -128,6 +128,35 @@ export async function exportAccounts (basePath: string, apiKey: string, current:
   }
 }
 
+function transformTransaction (transaction: Transaction): UpdateTransaction {
+  const source = transaction.source.source
+  if (source === undefined) throw Error('TODO: Create source account')
+
+  const destination = transaction.destination.destination
+  if (destination === undefined) throw Error('TODO: Create destination account')
+
+  const type = transactionMapping[source.type][destination.type]
+  if (type === undefined) throw Error(`Invalid transaction type ${source.type} -> ${destination.type}`)
+
+  // Construct update request body
+  const update: UpdateTransaction = {
+    type,
+    external_id: [...transaction.akahuIds].sort().join(','),
+    description: transaction.description,
+    date: transaction.date.toISOString(),
+    amount: transaction.amount.toString(),
+    source_id: source.fireflyId?.toString() ?? '0',
+    destination_id: destination.fireflyId?.toString() ?? '0'
+  }
+
+  // Set optional fields
+  if (transaction.foreignAmount !== undefined) update.foreign_amount = transaction.foreignAmount.toString()
+  if (transaction.foreignCurrencyCode !== undefined) update.foreign_currency_code = transaction.foreignCurrencyCode
+  if (transaction.categoryName !== undefined) update.category_name = transaction.categoryName
+
+  return update
+}
+
 export async function exportTransactions (basePath: string, apiKey: string, current: Transactions, modified: Transactions): Promise<void> {
   const config = new firefly.Configuration({
     apiKey,
@@ -139,35 +168,15 @@ export async function exportTransactions (basePath: string, apiKey: string, curr
   const factory = firefly.TransactionsApiFactory(config)
 
   // Process each Firefly transaction
-  for (const pair of modified.changes(current)) {
-    const changes = pair[1]
-    const transaction = modified.get(changes.id)
-    if (transaction === undefined) throw Error('Changes returned an invalid transaction ID - impossible')
+  for (const transaction of modified) {
+    const update = transformTransaction(transaction)
 
-    const source = transaction.source.source
-    if (source === undefined) throw Error('TODO: Create source account')
-
-    const destination = transaction.destination.destination
-    if (destination === undefined) throw Error('TODO: Create destination account')
-
-    const type = transactionMapping[source.type][destination.type]
-    if (type === undefined) throw Error(`Invalid transaction type ${source.type} -> ${destination.type}`)
-
-    // Construct update request body
-    const update: UpdateTransaction = {
-      type,
-      external_id: [...transaction.akahuIds].sort().join(','),
-      description: transaction.description,
-      date: transaction.date.toISOString(),
-      amount: transaction.amount.toString(),
-      source_id: source.fireflyId?.toString() ?? '0',
-      destination_id: destination.fireflyId?.toString() ?? '0'
+    // Check if transaction has been modified
+    const oldTransaction = current.get(transaction.id)
+    if (oldTransaction !== undefined) {
+      const otherUpdate = transformTransaction(oldTransaction)
+      if (JSON.stringify(update) === JSON.stringify(otherUpdate)) continue
     }
-
-    // Set optional fields
-    if (transaction.foreignAmount !== undefined) update.foreign_amount = transaction.foreignAmount.toString()
-    if (transaction.foreignCurrencyCode !== undefined) update.foreign_currency_code = transaction.foreignCurrencyCode
-    if (transaction.categoryName !== undefined) update.category_name = transaction.categoryName
 
     const request = {
       apply_rules: true,
@@ -178,14 +187,14 @@ export async function exportTransactions (basePath: string, apiKey: string, curr
     // Update or create transaction
     try {
       if (transaction.fireflyId !== undefined) {
-        console.log(`Updating transaction ${transaction.fireflyId}`, changes)
+        console.log(`Updating transaction ${transaction.fireflyId}`, update)
         await factory.updateTransaction(transaction.fireflyId.toString(), request)
       } else {
-        console.log('Creating transaction', changes)
+        console.log('Creating transaction', update)
         await factory.storeTransaction(request)
       }
     } catch (e: any) {
-      console.error(e?.response?.data)
+      console.error(request, e?.response?.data)
     }
   }
 }
