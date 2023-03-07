@@ -12,12 +12,12 @@ export enum AccountType {
 export interface Account {
   id: number
   source?: {
-    fireflyId: number
+    fireflyId?: number
     type: AccountType
     notes?: string | undefined
   } | undefined
   destination?: {
-    fireflyId: number
+    fireflyId?: number
     type: AccountType
     notes?: string | undefined
   } | undefined
