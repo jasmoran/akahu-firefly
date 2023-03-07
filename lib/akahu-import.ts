@@ -81,8 +81,8 @@ function transformTransaction (accounts: Accounts, transaction: AkahuTransaction
   const newTrans: IncompleteTransaction = {
     fireflyId: undefined,
     akahuIds: new Set([transaction._id]),
-    source,
-    destination,
+    sourceId: source.id,
+    destinationId: destination.id,
     date: new Date(transaction.date),
     amount: Big(transaction.amount).abs(),
     description: transaction.description
@@ -124,8 +124,9 @@ export async function importTransactions (accounts: Accounts): Promise<Transacti
     const transaction = transformTransaction(accounts, akahuTransaction)
 
     // Detect if this is an internal transfer of funds
-    if (transaction.source.akahuId !== undefined && transaction.destination.akahuId !== undefined &&
-      transaction.source.akahuId.startsWith('acc_') && transaction.destination.akahuId.startsWith('acc_')) {
+    const source = accounts.get(transaction.sourceId)
+    const destination = accounts.get(transaction.destinationId)
+    if (source?.akahuId?.startsWith('acc_') === true && destination?.akahuId?.startsWith('acc_') === true) {
       if (akahuTransaction.amount < 0) {
         negative.create(transaction)
       } else {

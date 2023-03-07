@@ -1,6 +1,5 @@
 import Big from 'big.js'
 import { compareTwoStrings } from 'string-similarity'
-import type { Account } from './accounts'
 import { Util } from './util'
 
 // Export Transaction type
@@ -12,8 +11,8 @@ export interface Transaction {
   description: string
   date: Date
   amount: Big
-  source: Account
-  destination: Account
+  sourceId: number
+  destinationId: number
   foreignAmount?: Big
   foreignCurrencyCode?: string
   categoryName?: string
@@ -193,14 +192,14 @@ export class Transactions implements Iterable<Transaction> {
       right.amount = b.amount
       different = true
     }
-    if (a.source.id !== b.source.id) {
-      left.source = a.source
-      right.source = b.source
+    if (a.sourceId !== b.sourceId) {
+      left.sourceId = a.sourceId
+      right.sourceId = b.sourceId
       different = true
     }
-    if (a.destination.id !== b.destination.id) {
-      left.destination = a.destination
-      right.destination = b.destination
+    if (a.destinationId !== b.destinationId) {
+      left.destinationId = a.destinationId
+      right.destinationId = b.destinationId
       different = true
     }
     if ((a.foreignAmount === undefined && b.foreignAmount !== undefined) ||
@@ -252,8 +251,8 @@ export class Transactions implements Iterable<Transaction> {
         return false
       }
 
-      return transaction.source.id === other.source.id &&
-        transaction.destination.id === other.destination.id &&
+      return transaction.sourceId === other.sourceId &&
+        transaction.destinationId === other.destinationId &&
         transaction.amount.eq(other.amount) &&
         compare(transaction, other)
     })

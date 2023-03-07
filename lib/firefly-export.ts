@@ -128,11 +128,11 @@ export async function exportAccounts (basePath: string, apiKey: string, current:
   }
 }
 
-function transformTransaction (transaction: Transaction): UpdateTransaction {
-  const source = transaction.source.source
+function transformTransaction (transaction: Transaction, accounts: Accounts): UpdateTransaction {
+  const source = accounts.get(transaction.sourceId)?.source
   if (source === undefined) throw Error('TODO: Create source account')
 
-  const destination = transaction.destination.destination
+  const destination = accounts.get(transaction.destinationId)?.destination
   if (destination === undefined) throw Error('TODO: Create destination account')
 
   const type = transactionMapping[source.type][destination.type]
@@ -157,7 +157,7 @@ function transformTransaction (transaction: Transaction): UpdateTransaction {
   return update
 }
 
-export async function exportTransactions (basePath: string, apiKey: string, current: Transactions, modified: Transactions): Promise<void> {
+export async function exportTransactions (basePath: string, apiKey: string, current: Transactions, modified: Transactions, accounts: Accounts): Promise<void> {
   const config = new firefly.Configuration({
     apiKey,
     basePath,
@@ -169,12 +169,12 @@ export async function exportTransactions (basePath: string, apiKey: string, curr
 
   // Process each Firefly transaction
   for (const transaction of modified) {
-    const update = transformTransaction(transaction)
+    const update = transformTransaction(transaction, accounts)
 
     // Check if transaction has been modified
     const oldTransaction = current.get(transaction.id)
     if (oldTransaction !== undefined) {
-      const otherUpdate = transformTransaction(oldTransaction)
+      const otherUpdate = transformTransaction(oldTransaction, accounts)
       if (JSON.stringify(update) === JSON.stringify(otherUpdate)) continue
     }
 

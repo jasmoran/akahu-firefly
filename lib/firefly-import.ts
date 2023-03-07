@@ -182,8 +182,8 @@ export async function importTransactions (accounts: Accounts): Promise<Transacti
       description: fireflyTransaction.description,
       date: fireflyTransaction.date,
       amount: Big(fireflyTransaction.amount),
-      source,
-      destination,
+      sourceId: source.id,
+      destinationId: destination.id,
       akahuIds: new Set(akahuIds)
     }
 
