@@ -25,7 +25,7 @@ type TransactionChanges = {
   id: number
 }
 
-export class Transactions {
+export class Transactions implements Iterable<Transaction> {
   private static counter = 0
   private transactions: Map<number, Transaction> = new Map()
   private fireflyIdIndex: Map<number, Transaction> = new Map()
@@ -352,5 +352,11 @@ export class Transactions {
     })
 
     return { left, right }
+  }
+
+  public * [Symbol.iterator] (): Iterator<Transaction> {
+    for (const account of this.transactions.values()) {
+      yield this.clone(account)
+    }
   }
 }

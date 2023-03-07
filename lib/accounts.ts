@@ -33,7 +33,7 @@ type AccountChanges = {
   id: number
 }
 
-export class Accounts {
+export class Accounts implements Iterable<Account> {
   private static counter = 0
   private readonly accounts: Map<number, Account> = new Map()
   private readonly fireflyIdIndex: Map<number, Account> = new Map()
@@ -283,6 +283,12 @@ export class Accounts {
       ]
     } else {
       return null
+    }
+  }
+
+  public * [Symbol.iterator] (): Iterator<Account> {
+    for (const account of this.accounts.values()) {
+      yield this.clone(account)
     }
   }
 }
