@@ -99,6 +99,16 @@ export class Transactions implements Iterable<Transaction> {
       return
     }
 
+    // Deny changes to Firefly or Akahu IDs
+    if (existing.fireflyId !== undefined && existing.fireflyId !== transaction.fireflyId) {
+      throw Error(`Cannot change Firefly ID once it has been set. ${existing.fireflyId} -> ${transaction.fireflyId ?? 'undefined'}`)
+    }
+    for (const akahuId of existing.akahuIds) {
+      if (!transaction.akahuIds.has(akahuId)) {
+        throw Error(`Cannot remove Akahu IDs once they have been added. ${akahuId}`)
+      }
+    }
+
     // De-index transaction
     this.deindex(existing)
 

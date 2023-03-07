@@ -202,6 +202,17 @@ export class Accounts implements Iterable<Account> {
       return
     }
 
+    // Deny changes to Firefly or Akahu IDs
+    if (existing.source?.fireflyId !== undefined && existing.source.fireflyId !== account.source?.fireflyId) {
+      throw Error(`Cannot change source Firefly ID once it has been set. ${existing.source.fireflyId} -> ${account.source?.fireflyId ?? 'undefined'}`)
+    }
+    if (existing.destination?.fireflyId !== undefined && existing.destination.fireflyId !== account.destination?.fireflyId) {
+      throw Error(`Cannot change destination Firefly ID once it has been set. ${existing.destination.fireflyId} -> ${account.destination?.fireflyId ?? 'undefined'}`)
+    }
+    if (existing.akahuId !== undefined && existing.akahuId !== account.akahuId) {
+      throw Error(`Cannot change Akahu ID once it has been set. ${existing.akahuId} -> ${account.akahuId ?? 'undefined'}`)
+    }
+
     // De-index account
     this.deindex(existing)
 
