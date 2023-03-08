@@ -72,7 +72,8 @@ async function updateAccount (
   account: Account,
   oldAccount: Account | undefined,
   select: 'source' | 'destination',
-  config: firefly.Configuration
+  config: firefly.Configuration,
+  dryRun: boolean
 ): Promise<void> {
   // Skip if source / destination undefined
   const sourceDest = account[select]
@@ -104,17 +105,23 @@ async function updateAccount (
   try {
     if (sourceDest.fireflyId !== undefined) {
       console.log(`Updating account ${sourceDest.fireflyId}`, update)
-      await factory.updateAccount(sourceDest.fireflyId.toString(), update)
+      if (!dryRun) await factory.updateAccount(sourceDest.fireflyId.toString(), update)
     } else {
       console.log('Creating account', update)
-      await factory.storeAccount({ ...update, type: sourceDest.type })
+      if (!dryRun) await factory.storeAccount({ ...update, type: sourceDest.type })
     }
   } catch (e: any) {
     console.error(account, e?.response?.data)
   }
 }
 
-async function exportAccounts (basePath: string, apiKey: string, current: Accounts, modified: Accounts): Promise<void> {
+async function exportAccounts (
+  basePath: string,
+  apiKey: string,
+  current: Accounts,
+  modified: Accounts,
+  dryRun: boolean
+): Promise<void> {
   const config = new firefly.Configuration({
     apiKey,
     basePath,
@@ -128,11 +135,11 @@ async function exportAccounts (basePath: string, apiKey: string, current: Accoun
     const oldAccount = current.get(account.id)
 
     // Process source account
-    await updateAccount(account, oldAccount, 'source', config)
+    await updateAccount(account, oldAccount, 'source', config, dryRun)
 
     // Process destination (if different from source)
     if (account.destination?.type === AccountType.Expense) {
-      await updateAccount(account, oldAccount, 'destination', config)
+      await updateAccount(account, oldAccount, 'destination', config, dryRun)
     }
   }
 }
@@ -166,7 +173,15 @@ function transformTransaction (transaction: Transaction, accounts: Accounts): Up
   return update
 }
 
-export async function exportTransactions (basePath: string, apiKey: string, current: Transactions, modified: Transactions, currentAccounts: Accounts, modifiedAccounts: Accounts): Promise<void> {
+export async function exportTransactions (
+  basePath: string,
+  apiKey: string,
+  current: Transactions,
+  modified: Transactions,
+  currentAccounts: Accounts,
+  modifiedAccounts: Accounts,
+  dryRun: boolean
+): Promise<void> {
   const config = new firefly.Configuration({
     apiKey,
     basePath,
@@ -199,7 +214,7 @@ export async function exportTransactions (basePath: string, apiKey: string, curr
     }
   }
 
-  await exportAccounts(basePath, apiKey, currentAccounts, modifiedAccounts)
+  await exportAccounts(basePath, apiKey, currentAccounts, modifiedAccounts, dryRun)
 
   // Process each Firefly transaction
   for (const transaction of modified) {
@@ -222,10 +237,10 @@ export async function exportTransactions (basePath: string, apiKey: string, curr
     try {
       if (transaction.fireflyId !== undefined) {
         console.log(`Updating transaction ${transaction.fireflyId}`, update)
-        await factory.updateTransaction(transaction.fireflyId.toString(), request)
+        if (!dryRun) await factory.updateTransaction(transaction.fireflyId.toString(), request)
       } else {
         console.log('Creating transaction', update)
-        await factory.storeTransaction(request)
+        if (!dryRun) await factory.storeTransaction(request)
       }
     } catch (e: any) {
       console.error(request, e?.response?.data)

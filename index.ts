@@ -89,8 +89,10 @@ async function main (): Promise<void> {
   const apiKey = process.env['FIREFLY_API_KEY']
   if (apiKey === undefined) throw new Error('$FIREFLY_API_KEY is not set')
 
+  const dryRun = process.env['DRY_RUN'] === 'true'
+
   console.log('Exporting transactions to Firefly')
-  await fireflyExport.exportTransactions(basePath, apiKey, originalTransactions, transactions, originalAccounts, accounts)
+  await fireflyExport.exportTransactions(basePath, apiKey, originalTransactions, transactions, originalAccounts, accounts, dryRun)
 
   console.log('Finished')
 }
