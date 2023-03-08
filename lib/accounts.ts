@@ -236,67 +236,6 @@ export class Accounts implements Iterable<Account> {
     return newAccounts
   }
 
-  public changes (other: Accounts): Array<[Partial<Account>, AccountChanges]> {
-    const changes: Array<[Partial<Account>, AccountChanges]> = []
-    this.accounts.forEach((b, id) => {
-      const diff = this.compare(other.get(id), b)
-      if (diff !== null) changes.push(diff)
-    })
-    return changes
-  }
-
-  private compare (a: Account | undefined, b: Account): [Partial<Account>, AccountChanges] | null {
-    // Return whole account if it is newly created
-    if (a === undefined) {
-      return [{}, b]
-    }
-
-    const left: Partial<Account> = {}
-    const right: Partial<Account> = {}
-    let different = false
-
-    if (Util.stringify(a.source) !== Util.stringify(b.source)) {
-      left.source = a.source
-      right.source = b.source
-      different = true
-    }
-    if (Util.stringify(a.destination) !== Util.stringify(b.destination)) {
-      left.destination = a.destination
-      right.destination = b.destination
-      different = true
-    }
-    if (a.akahuId !== b.akahuId) {
-      left.akahuId = a.akahuId
-      right.akahuId = b.akahuId
-      different = true
-    }
-    if (a.name !== b.name) {
-      left.name = a.name
-      right.name = b.name
-      different = true
-    }
-    if ([...a.bankNumbers].sort().join(',') !== [...b.bankNumbers].sort().join(',')) {
-      left.bankNumbers = a.bankNumbers
-      right.bankNumbers = b.bankNumbers
-      different = true
-    }
-    if ([...a.alternateNames.values()].sort().join(',') !== [...b.alternateNames.values()].sort().join(',')) {
-      left.alternateNames = a.alternateNames
-      right.alternateNames = b.alternateNames
-      different = true
-    }
-
-    // Return changed properties or null
-    if (different) {
-      return [
-        { ...left, id: a.id },
-        { ...right, id: b.id }
-      ]
-    } else {
-      return null
-    }
-  }
-
   public * [Symbol.iterator] (): Iterator<Account> {
     for (const account of this.accounts.values()) {
       yield this.clone(account)
