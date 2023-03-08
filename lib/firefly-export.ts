@@ -130,10 +130,10 @@ export async function exportAccounts (basePath: string, apiKey: string, current:
 
 function transformTransaction (transaction: Transaction, accounts: Accounts): UpdateTransaction {
   const source = accounts.get(transaction.sourceId)?.source
-  if (source === undefined) throw Error('TODO: Create source account')
+  if (source?.fireflyId === undefined) throw Error('Source account not set')
 
   const destination = accounts.get(transaction.destinationId)?.destination
-  if (destination === undefined) throw Error('TODO: Create destination account')
+  if (destination?.fireflyId === undefined) throw Error('Destination account not set')
 
   const type = transactionMapping[source.type][destination.type]
   if (type === undefined) throw Error(`Invalid transaction type ${source.type} -> ${destination.type}`)
@@ -145,8 +145,8 @@ function transformTransaction (transaction: Transaction, accounts: Accounts): Up
     description: transaction.description,
     date: transaction.date.toISOString(),
     amount: transaction.amount.toString(),
-    source_id: source.fireflyId?.toString() ?? '0',
-    destination_id: destination.fireflyId?.toString() ?? '0'
+    source_id: source.fireflyId.toString(),
+    destination_id: destination.fireflyId.toString()
   }
 
   // Set optional fields
@@ -166,6 +166,29 @@ export async function exportTransactions (basePath: string, apiKey: string, curr
     }
   })
   const factory = firefly.TransactionsApiFactory(config)
+
+  // Create source / destination accounts as necessary
+  for (const transaction of modified) {
+    const source = accounts.get(transaction.sourceId)
+    if (source === undefined) throw Error(`Invalid account ID ${transaction.sourceId}`)
+
+    if (source.source === undefined) {
+      source.source = {
+        type: AccountType.Revenue
+      }
+      accounts.save(source)
+    }
+
+    const destination = accounts.get(transaction.destinationId)
+    if (destination === undefined) throw Error(`Invalid account ID ${transaction.destinationId}`)
+
+    if (destination.destination === undefined) {
+      destination.destination = {
+        type: AccountType.Expense
+      }
+      accounts.save(destination)
+    }
+  }
 
   // Process each Firefly transaction
   for (const transaction of modified) {
