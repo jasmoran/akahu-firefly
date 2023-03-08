@@ -18,12 +18,6 @@ export interface Transaction {
   categoryName?: string
 }
 
-type TransactionChanges = {
-  [P in keyof Transaction]?: Transaction[P]
-} & {
-  id: number
-}
-
 export class Transactions implements Iterable<Transaction> {
   private static counter = 0
   private transactions: Map<number, Transaction> = new Map()

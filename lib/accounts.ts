@@ -27,12 +27,6 @@ export interface Account {
   alternateNames: Map<string, string>
 }
 
-type AccountChanges = {
-  [P in keyof Account]?: Account[P]
-} & {
-  id: number
-}
-
 export class Accounts implements Iterable<Account> {
   private static counter = 0
   private readonly accounts: Map<number, Account> = new Map()
