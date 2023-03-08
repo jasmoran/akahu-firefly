@@ -7,6 +7,7 @@ import type { Account, Transaction, TransactionQueryParams } from 'akahu'
 import * as fireflyImport from './lib/firefly-import'
 import * as fireflyExport from './lib/firefly-export'
 import * as akahuImport from './lib/akahu-import'
+import type { Transaction as Trans } from './lib/transactions'
 
 interface Row<T> {
   id: string
@@ -75,7 +76,11 @@ async function main (): Promise<void> {
   console.log('Merging transactions')
   transactions.merge(akahuTransactions, (a, b) => {
     // Check Akahu IDs match
+    if (a.akahuIds.size === 0 || b.akahuIds.size === 0) return true
     return [...a.akahuIds].sort().join(',') === [...b.akahuIds].sort().join(',')
+  }, (a: Trans, b: Trans) => {
+    // Combine the two descriptions
+    a.description = b.description
   })
 
   const basePath = process.env['FIREFLY_BASE_PATH']
