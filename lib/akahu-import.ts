@@ -2,7 +2,7 @@ import knex from 'knex'
 import Big from 'big.js'
 import type { Transaction as AkahuTransaction } from 'akahu'
 import { production } from '../knexfile'
-import type { Account, Accounts } from './accounts'
+import { Account, Accounts } from './accounts'
 import { Transaction, Transactions } from './transactions'
 import { Util } from './util'
 
@@ -66,6 +66,15 @@ function transformTransaction (accounts: Accounts, transaction: AkahuTransaction
   if (account === undefined) throw Error(`Akahu account ${transaction._account} not set up`)
 
   const foundAccount = findAccount(accounts, transaction)
+
+  // Update account from merchant
+  if ('merchant' in transaction && foundAccount !== undefined && foundAccount.akahuId === undefined) {
+    const name = transaction.merchant.name
+    foundAccount.alternateNames.set(Accounts.normalizeName(name), name)
+    foundAccount.akahuId = transaction.merchant._id
+
+    accounts.save(foundAccount)
+  }
 
   let source: Account, destination: Account
   if (transaction.amount < 0) {
