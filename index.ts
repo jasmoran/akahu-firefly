@@ -85,7 +85,7 @@ async function main (): Promise<void> {
   if (apiKey === undefined) throw new Error('$FIREFLY_API_KEY is not set')
 
   console.log('Exporting transactions to Firefly')
-  await fireflyExport.exportAccounts(basePath, apiKey, originalAccounts, accounts)
+  await fireflyExport.exportTransactions(basePath, apiKey, originalTransactions, transactions, originalAccounts, accounts)
 
   console.log('Finished')
 }

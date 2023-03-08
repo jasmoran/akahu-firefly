@@ -157,7 +157,7 @@ function transformTransaction (transaction: Transaction, accounts: Accounts): Up
   return update
 }
 
-export async function exportTransactions (basePath: string, apiKey: string, current: Transactions, modified: Transactions, accounts: Accounts): Promise<void> {
+export async function exportTransactions (basePath: string, apiKey: string, current: Transactions, modified: Transactions, currentAccounts: Accounts, modifiedAccounts: Accounts): Promise<void> {
   const config = new firefly.Configuration({
     apiKey,
     basePath,
@@ -169,35 +169,37 @@ export async function exportTransactions (basePath: string, apiKey: string, curr
 
   // Create source / destination accounts as necessary
   for (const transaction of modified) {
-    const source = accounts.get(transaction.sourceId)
+    const source = modifiedAccounts.get(transaction.sourceId)
     if (source === undefined) throw Error(`Invalid account ID ${transaction.sourceId}`)
 
     if (source.source === undefined) {
       source.source = {
         type: AccountType.Revenue
       }
-      accounts.save(source)
+      modifiedAccounts.save(source)
     }
 
-    const destination = accounts.get(transaction.destinationId)
+    const destination = modifiedAccounts.get(transaction.destinationId)
     if (destination === undefined) throw Error(`Invalid account ID ${transaction.destinationId}`)
 
     if (destination.destination === undefined) {
       destination.destination = {
         type: AccountType.Expense
       }
-      accounts.save(destination)
+      modifiedAccounts.save(destination)
     }
   }
 
+  await exportAccounts(basePath, apiKey, currentAccounts, modifiedAccounts)
+
   // Process each Firefly transaction
   for (const transaction of modified) {
-    const update = transformTransaction(transaction, accounts)
+    const update = transformTransaction(transaction, modifiedAccounts)
 
     // Check if transaction has been modified
     const oldTransaction = current.get(transaction.id)
     if (oldTransaction !== undefined) {
-      const otherUpdate = transformTransaction(oldTransaction, accounts)
+      const otherUpdate = transformTransaction(oldTransaction, modifiedAccounts)
       if (JSON.stringify(update) === JSON.stringify(otherUpdate)) continue
     }
 
