@@ -91,10 +91,6 @@ export async function importAccounts (): Promise<Accounts> {
     let akahuId: string | undefined
     if (fireflyAccount.notes !== null && firefly.AKAHU_ID_REGEX.test(fireflyAccount.notes)) {
       akahuId = fireflyAccount.notes.match(firefly.AKAHU_ID_REGEX)?.[1]
-    } else if (fireflyAccount.iban !== null && /^(acc|merchant)_/.test(fireflyAccount.iban)) {
-      akahuId = fireflyAccount.iban
-    } else if (fireflyAccount.external_id !== null && /^(acc|merchant)_/.test(fireflyAccount.external_id)) {
-      akahuId = fireflyAccount.external_id
     }
 
     const notes = fireflyAccount.notes ?? undefined
