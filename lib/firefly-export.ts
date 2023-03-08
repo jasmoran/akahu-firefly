@@ -68,7 +68,53 @@ function updateNotes (notes: string | undefined, akahuId: string | undefined, ot
   return notes.trim()
 }
 
-export async function exportAccounts (basePath: string, apiKey: string, current: Accounts, modified: Accounts): Promise<void> {
+async function updateAccount (
+  account: Account,
+  oldAccount: Account | undefined,
+  select: 'source' | 'destination',
+  config: firefly.Configuration
+): Promise<void> {
+  // Skip if source / destination undefined
+  const sourceDest = account[select]
+  if (sourceDest === undefined) return
+
+  // Remove primary name from alternateNames
+  const altNames = new Map(account.alternateNames)
+  altNames.delete(Accounts.normalizeName(account.name))
+  const otherNames = [...altNames.values()]
+
+  const update: UpdateAccount = {
+    name: account.name,
+    account_number: [...account.bankNumbers].sort().join(','),
+    notes: updateNotes(sourceDest.notes, account.akahuId, otherNames)
+  }
+
+  if (oldAccount !== undefined) {
+    const oldUpdate: UpdateAccount = {
+      name: oldAccount.name,
+      account_number: [...oldAccount.bankNumbers].sort().join(','),
+      notes: oldAccount[select]?.notes?.trim() ?? ''
+    }
+    if (JSON.stringify(oldUpdate) === JSON.stringify(update)) return
+  }
+
+  const factory = firefly.AccountsApiFactory(config)
+
+  // Update or create accounts
+  try {
+    if (sourceDest.fireflyId !== undefined) {
+      console.log(`Updating account ${sourceDest.fireflyId}`, update)
+      await factory.updateAccount(sourceDest.fireflyId.toString(), update)
+    } else {
+      console.log('Creating account', update)
+      await factory.storeAccount({ ...update, type: sourceDest.type })
+    }
+  } catch (e: any) {
+    console.error(account, e?.response?.data)
+  }
+}
+
+async function exportAccounts (basePath: string, apiKey: string, current: Accounts, modified: Accounts): Promise<void> {
   const config = new firefly.Configuration({
     apiKey,
     basePath,
@@ -76,54 +122,17 @@ export async function exportAccounts (basePath: string, apiKey: string, current:
       headers: { Authorization: `Bearer ${apiKey}` }
     }
   })
-  const factory = firefly.AccountsApiFactory(config)
 
   // Process each Firefly account
-  for (const pair of modified.changes(current)) {
-    const changes = pair[1]
-    const account = modified.get(changes.id)
-    if (account === undefined) throw Error('Changes returned an invalid account ID - impossible')
+  for (const account of modified) {
+    const oldAccount = current.get(account.id)
 
-    // Remove primary name from alternateNames
-    const altNames = new Map(account.alternateNames)
-    altNames.delete(Accounts.normalizeName(account.name))
-    const otherNames = [...altNames.values()]
+    // Process source account
+    await updateAccount(account, oldAccount, 'source', config)
 
-    // Construct update request body
-    const update: UpdateAccount = {
-      name: account.name,
-      account_number: [...account.bankNumbers].sort().join(',')
-    }
-
-    // Update or create accounts
-    try {
-      // Process source
-      if (account.source !== undefined) {
-        update.notes = updateNotes(account.source.notes, account.akahuId, otherNames)
-
-        if (account.source.fireflyId !== undefined) {
-          console.log(`Updating account ${account.source.fireflyId}`, changes)
-          await factory.updateAccount(account.source.fireflyId.toString(), update)
-        } else {
-          console.log('Creating account', changes)
-          await factory.storeAccount({ ...update, type: account.source.type })
-        }
-      }
-
-      // Process destination (if different from source)
-      if (account.destination !== undefined && account.source?.fireflyId !== account.destination.fireflyId) {
-        update.notes = updateNotes(account.destination.notes, account.akahuId, otherNames)
-
-        if (account.destination.fireflyId !== undefined) {
-          console.log(`Updating account ${account.destination.fireflyId}`, changes)
-          await factory.updateAccount(account.destination.fireflyId.toString(), update)
-        } else {
-          console.log('Creating account', changes)
-          await factory.storeAccount({ ...update, type: account.destination.type })
-        }
-      }
-    } catch (e: any) {
-      console.error(account, e?.response?.data)
+    // Process destination (if different from source)
+    if (account.destination?.type === AccountType.Expense) {
+      await updateAccount(account, oldAccount, 'destination', config)
     }
   }
 }
