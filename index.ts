@@ -61,8 +61,14 @@ async function main (): Promise<void> {
     await updateAkahuTransactions(transactionsTable, akahu, userToken)
   }
 
+  const basePath = process.env['FIREFLY_BASE_PATH']
+  if (basePath === undefined) throw new Error('$FIREFLY_BASE_PATH is not set')
+
+  const apiKey = process.env['FIREFLY_API_KEY']
+  if (apiKey === undefined) throw new Error('$FIREFLY_API_KEY is not set')
+
   console.log('Importing Firefly accounts and transactions')
-  const firefly = new Firefly()
+  const firefly = new Firefly(apiKey, basePath)
   firefly.import()
 
   console.log('Importing Akahu transactions')
@@ -78,16 +84,10 @@ async function main (): Promise<void> {
     a.description = b.description
   })
 
-  const basePath = process.env['FIREFLY_BASE_PATH']
-  if (basePath === undefined) throw new Error('$FIREFLY_BASE_PATH is not set')
-
-  const apiKey = process.env['FIREFLY_API_KEY']
-  if (apiKey === undefined) throw new Error('$FIREFLY_API_KEY is not set')
-
   const dryRun = process.env['DRY_RUN'] === 'true'
 
   console.log('Exporting transactions to Firefly')
-  await firefly.export(basePath, apiKey, dryRun)
+  await firefly.export(dryRun)
 
   console.log('Finished')
 }

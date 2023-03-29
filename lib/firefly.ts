@@ -1,4 +1,4 @@
-import * as fireflySDK from 'firefly-iii-sdk-typescript'
+import { Configuration, AccountsApiFactory, TransactionsApiFactory } from 'firefly-iii-sdk-typescript'
 import { TransactionTypeProperty } from 'firefly-iii-sdk-typescript'
 import knex from 'knex'
 import Big from 'big.js'
@@ -74,6 +74,23 @@ export class Firefly {
   // Store modified accounts and transactions
   private modifiedAccounts: Accounts | undefined
   private modifiedTransactions: Transactions | undefined
+
+  // Firefly API clients
+  private readonly accountsAPI
+  private readonly transactionAPI
+  
+  // Initialise class
+  constructor (apiKey: string, basePath: string) {
+    const apiConfig = new Configuration({
+      apiKey,
+      basePath,
+      baseOptions: {
+        headers: { Authorization: `Bearer ${apiKey}` }
+      }
+    })
+    this.accountsAPI = AccountsApiFactory(apiConfig)
+    this.transactionAPI = TransactionsApiFactory(apiConfig)
+  }
   
   public async import () {
     // Import accounts and transactions from Firefly
@@ -416,7 +433,6 @@ export class Firefly {
     account: Accounts.Account,
     oldAccount: Accounts.Account | undefined,
     select: 'source' | 'destination',
-    config: fireflySDK.Configuration,
     dryRun: boolean
   ): Promise<void> {
     // Skip if source / destination undefined
@@ -443,45 +459,31 @@ export class Firefly {
       if (JSON.stringify(oldUpdate) === JSON.stringify(update)) return
     }
 
-    const factory = fireflySDK.AccountsApiFactory(config)
-
     // Update or create accounts
     try {
       if (sourceDest.fireflyId !== undefined) {
         console.log(`Updating account ${sourceDest.fireflyId}`, update)
-        if (!dryRun) await factory.updateAccount(sourceDest.fireflyId.toString(), update)
+        if (!dryRun) await this.accountsAPI.updateAccount(sourceDest.fireflyId.toString(), update)
       } else {
         console.log('Creating account', update)
-        if (!dryRun) await factory.storeAccount({ ...update, type: sourceDest.type })
+        if (!dryRun) await this.accountsAPI.storeAccount({ ...update, type: sourceDest.type })
       }
     } catch (e: any) {
       console.error(account, e?.response?.data)
     }
   }
 
-  private async exportAccounts (
-    basePath: string,
-    apiKey: string,
-    dryRun: boolean
-  ): Promise<void> {
-    const config = new fireflySDK.Configuration({
-      apiKey,
-      basePath,
-      baseOptions: {
-        headers: { Authorization: `Bearer ${apiKey}` }
-      }
-    })
-
+  private async exportAccounts (dryRun: boolean): Promise<void> {
     // Process each Firefly account
     for (const account of this.accounts) {
       const oldAccount = this.actualAccounts.get(account.id)
 
       // Process source account
-      await this.updateAccount(account, oldAccount, 'source', config, dryRun)
+      await this.updateAccount(account, oldAccount, 'source', dryRun)
 
       // Process destination (if different from source)
       if (account.destination?.type === Accounts.Type.Expense) {
-        await this.updateAccount(account, oldAccount, 'destination', config, dryRun)
+        await this.updateAccount(account, oldAccount, 'destination', dryRun)
       }
     }
   }
@@ -515,20 +517,7 @@ export class Firefly {
     return update
   }
 
-  public async export (
-    basePath: string,
-    apiKey: string,
-    dryRun: boolean
-  ): Promise<void> {
-    const config = new fireflySDK.Configuration({
-      apiKey,
-      basePath,
-      baseOptions: {
-        headers: { Authorization: `Bearer ${apiKey}` }
-      }
-    })
-    const factory = fireflySDK.TransactionsApiFactory(config)
-
+  public async export (dryRun: boolean): Promise<void> {
     // Create source / destination accounts as necessary
     for (const transaction of this.transactions) {
       const source = this.accounts.get(transaction.sourceId)
@@ -552,7 +541,7 @@ export class Firefly {
       }
     }
 
-    await this.exportAccounts(basePath, apiKey, dryRun)
+    await this.exportAccounts(dryRun)
 
     // Process each Firefly transaction
     for (const transaction of this.transactions) {
@@ -575,10 +564,10 @@ export class Firefly {
       try {
         if (transaction.fireflyId !== undefined) {
           console.log(`Updating transaction ${transaction.fireflyId}`, update)
-          if (!dryRun) await factory.updateTransaction(transaction.fireflyId.toString(), request)
+          if (!dryRun) await this.transactionAPI.updateTransaction(transaction.fireflyId.toString(), request)
         } else {
           console.log('Creating transaction', update)
-          if (!dryRun) await factory.storeTransaction(request)
+          if (!dryRun) await this.transactionAPI.storeTransaction(request)
         }
       } catch (e: any) {
         console.error(request, e?.response?.data)
