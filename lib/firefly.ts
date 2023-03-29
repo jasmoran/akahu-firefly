@@ -517,8 +517,8 @@ export class Firefly {
     return update
   }
 
-  public async export (dryRun: boolean): Promise<void> {
-    // Create source / destination accounts as necessary
+  // Create source / destination accounts as necessary
+  private createMissingAccounts() {
     for (const transaction of this.transactions) {
       const source = this.accounts.get(transaction.sourceId)
       if (source === undefined) throw Error(`Invalid account ID ${transaction.sourceId}`)
@@ -540,9 +540,9 @@ export class Firefly {
         this.accounts.save(destination)
       }
     }
+  }
 
-    await this.exportAccounts(dryRun)
-
+  private async exportTransactions (dryRun: boolean): Promise<void> {
     // Process each Firefly transaction
     for (const transaction of this.transactions) {
       const update = this.transformTransaction(transaction)
@@ -573,5 +573,11 @@ export class Firefly {
         console.error(request, e?.response?.data)
       }
     }
+  }
+
+  public async export (dryRun: boolean): Promise<void> {
+    this.createMissingAccounts()
+    await this.exportAccounts(dryRun)
+    await this.exportTransactions(dryRun)
   }
 }
