@@ -462,8 +462,6 @@ export class Firefly {
   private async exportAccounts (
     basePath: string,
     apiKey: string,
-    current: Accounts,
-    modified: Accounts,
     dryRun: boolean
   ): Promise<void> {
     const config = new fireflySDK.Configuration({
@@ -475,8 +473,8 @@ export class Firefly {
     })
 
     // Process each Firefly account
-    for (const account of modified) {
-      const oldAccount = current.get(account.id)
+    for (const account of this.accounts) {
+      const oldAccount = this.actualAccounts.get(account.id)
 
       // Process source account
       await this.updateAccount(account, oldAccount, 'source', config, dryRun)
@@ -488,11 +486,11 @@ export class Firefly {
     }
   }
 
-  private transformTransaction (transaction: TransactionTransaction, accounts: Accounts): UpdateTransaction {
-    const source = accounts.get(transaction.sourceId)?.source
+  private transformTransaction (transaction: TransactionTransaction): UpdateTransaction {
+    const source = this.accounts.get(transaction.sourceId)?.source
     if (source?.fireflyId === undefined) throw Error('Source account not set')
 
-    const destination = accounts.get(transaction.destinationId)?.destination
+    const destination = this.accounts.get(transaction.destinationId)?.destination
     if (destination?.fireflyId === undefined) throw Error('Destination account not set')
 
     const type = Firefly.transactionMapping[source.type][destination.type]
@@ -554,16 +552,16 @@ export class Firefly {
       }
     }
 
-    await this.exportAccounts(basePath, apiKey, this.actualAccounts, this.accounts, dryRun)
+    await this.exportAccounts(basePath, apiKey, dryRun)
 
     // Process each Firefly transaction
     for (const transaction of this.transactions) {
-      const update = this.transformTransaction(transaction, this.accounts)
+      const update = this.transformTransaction(transaction)
 
       // Check if transaction has been modified
       const oldTransaction = this.actualTransactions.get(transaction.id)
       if (oldTransaction !== undefined) {
-        const otherUpdate = this.transformTransaction(oldTransaction, this.accounts)
+        const otherUpdate = this.transformTransaction(oldTransaction)
         if (JSON.stringify(update) === JSON.stringify(otherUpdate)) continue
       }
 
