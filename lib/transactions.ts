@@ -2,29 +2,13 @@ import Big from 'big.js'
 import { compareTwoStrings } from 'string-similarity'
 import { Util } from './util'
 
-// Export Transaction type
-// Transfer transactions must have a second akahuId
-export interface Transaction {
-  id: number
-  fireflyId: number | undefined
-  akahuIds: Set<string>
-  description: string
-  date: Date
-  amount: Big
-  sourceId: number
-  destinationId: number
-  foreignAmount?: Big
-  foreignCurrencyCode?: string
-  categoryName?: string
-}
-
-export class Transactions implements Iterable<Transaction> {
+export class Transactions implements Iterable<Transactions.Transaction> {
   private static counter = 0
-  private transactions: Map<number, Transaction> = new Map()
-  private fireflyIdIndex: Map<number, Transaction> = new Map()
-  private akahuIdIndex: Map<string, Transaction> = new Map()
+  private transactions: Map<number, Transactions.Transaction> = new Map()
+  private fireflyIdIndex: Map<number, Transactions.Transaction> = new Map()
+  private akahuIdIndex: Map<string, Transactions.Transaction> = new Map()
 
-  private index (transaction: Transaction): void {
+  private index (transaction: Transactions.Transaction): void {
     this.transactions.set(transaction.id, transaction)
 
     // Add transaction to fireflyIdIndex
@@ -48,7 +32,7 @@ export class Transactions implements Iterable<Transaction> {
     })
   }
 
-  private deindex (transaction: Transaction): void {
+  private deindex (transaction: Transactions.Transaction): void {
     // Remove transaction from fireflyIdIndex
     if (transaction.fireflyId !== undefined) {
       this.fireflyIdIndex.delete(transaction.fireflyId)
@@ -60,7 +44,7 @@ export class Transactions implements Iterable<Transaction> {
     })
   }
 
-  private clone (transaction: Transaction): Transaction {
+  private clone (transaction: Transactions.Transaction): Transactions.Transaction {
     const clone = { ...transaction }
     clone.akahuIds = new Set(clone.akahuIds)
     clone.date = new Date(clone.date)
@@ -69,22 +53,22 @@ export class Transactions implements Iterable<Transaction> {
     return clone
   }
 
-  public get (id: number): Transaction | undefined {
+  public get (id: number): Transactions.Transaction | undefined {
     const res = this.transactions.get(id)
     return res === undefined ? undefined : this.clone(res)
   }
 
-  public getByAkahuId (akahuId: string): Transaction | undefined {
+  public getByAkahuId (akahuId: string): Transactions.Transaction | undefined {
     const res = this.akahuIdIndex.get(akahuId)
     return res === undefined ? undefined : this.clone(res)
   }
 
-  public getByFireflyId (fireflyId: number): Transaction | undefined {
+  public getByFireflyId (fireflyId: number): Transactions.Transaction | undefined {
     const res = this.fireflyIdIndex.get(fireflyId)
     return res === undefined ? undefined : this.clone(res)
   }
 
-  public save (transaction: Transaction): void {
+  public save (transaction: Transactions.Transaction): void {
     // Check if the ID exists
     const existing = this.transactions.get(transaction.id)
     if (existing === undefined) {
@@ -109,8 +93,8 @@ export class Transactions implements Iterable<Transaction> {
     this.index(transaction)
   }
 
-  public create (inputTransaction: Omit<Transaction, 'id'>): Transaction {
-    const transaction = inputTransaction as Transaction
+  public create (inputTransaction: Omit<Transactions.Transaction, 'id'>): Transactions.Transaction {
+    const transaction = inputTransaction as Transactions.Transaction
     if (transaction.id === undefined) {
       Transactions.counter++
       transaction.id = Transactions.counter
@@ -143,10 +127,10 @@ export class Transactions implements Iterable<Transaction> {
   }
 
   private findBestTransaction (
-    transaction: Transaction,
-    transactions: Transaction[],
-    compare: (a: Transaction, b: Transaction) => boolean
-  ): Transaction | undefined {
+    transaction: Transactions.Transaction,
+    transactions: Transactions.Transaction[],
+    compare: (a: Transactions.Transaction, b: Transactions.Transaction) => boolean
+  ): Transactions.Transaction | undefined {
     // Find transactions with the same source, destination and amount
     const matches = transactions.filter(other => {
       // Check firefly IDs match
@@ -174,7 +158,7 @@ export class Transactions implements Iterable<Transaction> {
     type Similarities = Array<{
       date: number
       description: number
-      transaction: Transaction
+      transaction: Transactions.Transaction
     }>
 
     // Calculate similarity of date and description for each match
@@ -201,7 +185,7 @@ export class Transactions implements Iterable<Transaction> {
   /**
    * Populate missing details in transaction a with details from transaction
    */
-  private mergeTransactions (a: Transaction, b: Transaction): void {
+  private mergeTransactions (a: Transactions.Transaction, b: Transactions.Transaction): void {
     // Update transaction a from transaction b
     a.fireflyId ??= b.fireflyId
     a.akahuIds = new Set([...a.akahuIds, ...b.akahuIds])
@@ -226,12 +210,12 @@ export class Transactions implements Iterable<Transaction> {
    */
   public merge (
     other: Transactions,
-    compare: (a: Transaction, b: Transaction) => boolean = _ => true,
-    merge: (a: Transaction, b: Transaction) => void = _ => _
-  ): { left: Map<number, Transaction>, right: Map<number, Transaction> } {
+    compare: (a: Transactions.Transaction, b: Transactions.Transaction) => boolean = _ => true,
+    merge: (a: Transactions.Transaction, b: Transactions.Transaction) => void = _ => _
+  ): { left: Map<number, Transactions.Transaction>, right: Map<number, Transactions.Transaction> } {
     // Clone transaction maps
-    const left: Map<number, Transaction> = new Map(this.transactions)
-    const right: Map<number, Transaction> = new Map(other.transactions)
+    const left: Map<number, Transactions.Transaction> = new Map(this.transactions)
+    const right: Map<number, Transactions.Transaction> = new Map(other.transactions)
 
     // Look for transactions in left that match transactions in `other`
     left.forEach(transaction => {
@@ -274,9 +258,27 @@ export class Transactions implements Iterable<Transaction> {
     return { left, right }
   }
 
-  public * [Symbol.iterator] (): Iterator<Transaction> {
+  public * [Symbol.iterator] (): Iterator<Transactions.Transaction> {
     for (const account of this.transactions.values()) {
       yield this.clone(account)
     }
+  }
+}
+
+export namespace Transactions {
+  // Export Transaction type
+  // Transfer transactions must have a second akahuId
+  export interface Transaction {
+    id: number
+    fireflyId: number | undefined
+    akahuIds: Set<string>
+    description: string
+    date: Date
+    amount: Big
+    sourceId: number
+    destinationId: number
+    foreignAmount?: Big
+    foreignCurrencyCode?: string
+    categoryName?: string
   }
 }

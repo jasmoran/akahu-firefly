@@ -6,7 +6,7 @@ import type { Account, Transaction, TransactionQueryParams } from 'akahu'
 
 import { Firefly } from './lib/firefly'
 import * as akahuImport from './lib/akahu-import'
-import type { Transaction as Trans } from './lib/transactions'
+import type { Transactions } from './lib/transactions'
 
 interface Row<T> {
   id: string
@@ -73,7 +73,7 @@ async function main (): Promise<void> {
     // Check Akahu IDs match
     if (a.akahuIds.size === 0 || b.akahuIds.size === 0) return true
     return [...a.akahuIds].sort().join(',') === [...b.akahuIds].sort().join(',')
-  }, (a: Trans, b: Trans) => {
+  }, (a: Transactions.Transaction, b: Transactions.Transaction) => {
     // Combine the two descriptions
     a.description = b.description
   })

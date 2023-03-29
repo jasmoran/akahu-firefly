@@ -3,7 +3,7 @@ import Big from 'big.js'
 import type { Transaction as AkahuTransaction } from 'akahu'
 import { production } from '../knexfile'
 import { Accounts } from './accounts'
-import { Transaction, Transactions } from './transactions'
+import { Transactions } from './transactions'
 import { Util } from './util'
 
 interface CurrencyConversion {
@@ -18,7 +18,7 @@ interface Row<T> {
   data: T
 }
 
-type IncompleteTransaction = Omit<Transaction, 'id'>
+type IncompleteTransaction = Omit<Transactions.Transaction, 'id'>
 
 function findAccount (accounts: Accounts, transaction: AkahuTransaction): Accounts.Account {
   let account: Accounts.Account | undefined
@@ -149,7 +149,7 @@ export async function importTransactions (accounts: Accounts): Promise<Transacti
   // Transfers between our accounts will result in two transactions,
   // one from the source account and one from the destination account.
   // Find these pairs and merge the two transactions together.
-  const remainders = positive.merge(negative, _ => true, (a: Transaction, b: Transaction) => {
+  const remainders = positive.merge(negative, _ => true, (a: Transactions.Transaction, b: Transactions.Transaction) => {
     // Combine the two descriptions
     a.description = `${a.description} - ${b.description}`
   })

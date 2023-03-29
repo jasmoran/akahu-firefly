@@ -4,7 +4,7 @@ import knex from 'knex'
 import Big from 'big.js'
 import { firefly } from '../knexfile'
 import { Accounts } from './accounts'
-import { Transaction as TransactionTransaction, Transactions } from './transactions'
+import { Transactions } from './transactions'
 import { Util } from './util'
 
 enum AccountType {
@@ -375,7 +375,7 @@ export class Firefly {
       if (source === undefined || destination === undefined) throw Error("Source or desination account doesn't exist")
 
       // Create Transaction from Firefly data
-      const transaction: Omit<TransactionTransaction, 'id'> = {
+      const transaction: Omit<Transactions.Transaction, 'id'> = {
         fireflyId: fireflyTransaction.id,
         description: fireflyTransaction.description,
         date: fireflyTransaction.date,
@@ -486,7 +486,7 @@ export class Firefly {
     }
   }
 
-  private transformTransaction (transaction: TransactionTransaction): UpdateTransaction {
+  private transformTransaction (transaction: Transactions.Transaction): UpdateTransaction {
     const source = this.accounts.get(transaction.sourceId)?.source
     if (source?.fireflyId === undefined) throw Error('Source account not set')
 
