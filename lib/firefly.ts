@@ -67,6 +67,36 @@ interface UpdateTransaction {
 }
 
 export class Firefly {
+  // Store accounts and transactions as they currently exist in Firefly
+  private actualAccounts = new Accounts()
+  private actualTransactions = new Transactions()
+
+  // Store modified accounts and transactions
+  private modifiedAccounts: Accounts | undefined
+  private modifiedTransactions: Transactions | undefined
+  
+  public async import () {
+    // Import accounts and transactions from Firefly
+    await this.importAccounts()
+    await this.importTransactions()
+
+    // Clone imported accounts and transactions
+    this.modifiedAccounts = this.actualAccounts.duplicate()
+    this.modifiedTransactions = this.actualTransactions.duplicate()
+  }
+
+  // Getter for modified accounts
+  public get accounts (): Accounts {
+    if (this.modifiedAccounts === undefined) throw new Error('Accounts not imported')
+    return this.modifiedAccounts
+  }
+
+  // Getter for modified transactions
+  public get transactions (): Transactions {
+    if (this.modifiedTransactions === undefined) throw new Error('Transactions not imported')
+    return this.modifiedTransactions
+  }
+
   // Map Firefly account types to Asset, Liability, Expense and Revenue
   // Ignore type accounts will be discarded
   private static readonly TypeMapping: { [K in AccountType]?: AccountAccountType } = {
@@ -193,7 +223,7 @@ export class Firefly {
   }
 
   // Find all accounts that match any of the provided identifiers
-  private findMatches (accounts: Accounts, account: Omit<AccountAccount, 'id'>): AccountAccount[] {
+  private findMatches (account: Omit<AccountAccount, 'id'>): AccountAccount[] {
     const matches: Map<number, AccountAccount> = new Map()
 
     const addAccount = (acc: AccountAccount | undefined): void => {
@@ -204,20 +234,20 @@ export class Firefly {
 
     // Match on account name
     account.alternateNames.forEach(name => {
-      addAccount(accounts.getByName(name))
+      addAccount(this.actualAccounts.getByName(name))
     })
 
     // Match on bank numbers
     account.bankNumbers.forEach(bankNumber => {
-      addAccount(accounts.getByBankNumber(bankNumber))
+      addAccount(this.actualAccounts.getByBankNumber(bankNumber))
     })
 
     // Match on Akahu ID
-    addAccount(accounts.getByAkahuId(account.akahuId ?? ''))
+    addAccount(this.actualAccounts.getByAkahuId(account.akahuId ?? ''))
 
     // Match on Firefly ID
-    addAccount(accounts.getByFireflyId(account.source?.fireflyId ?? 0))
-    addAccount(accounts.getByFireflyId(account.destination?.fireflyId ?? 0))
+    addAccount(this.actualAccounts.getByFireflyId(account.source?.fireflyId ?? 0))
+    addAccount(this.actualAccounts.getByFireflyId(account.destination?.fireflyId ?? 0))
 
     return [...matches.values()]
   }
@@ -252,9 +282,9 @@ export class Firefly {
     }
   }
 
-  public async importAccounts (): Promise<Accounts> {
+  // Import all accounts from Firefly
+  public async importAccounts (): Promise<void> {
     const fireflyAccounts = await this.getAccounts()
-    const accs = new Accounts()
 
     // Process each Firefly account
     fireflyAccounts.forEach(fireflyAccount => {
@@ -311,26 +341,23 @@ export class Firefly {
       }
 
       // Find any accounts that have matching values
-      const matches = this.findMatches(accs, account)
+      const matches = this.findMatches(account)
       const [match, others] = matches
 
       if (match === undefined) {
         // Create a new account if there are no existing accounts
-        accs.create(account)
+        this.actualAccounts.create(account)
       } else if (others === undefined && (type === AccountAccountType.Revenue || type === AccountAccountType.Expense)) {
         // Merge expense / revenue accounts
-        accs.save(this.mergeAccounts(match, account))
+        this.actualAccounts.save(this.mergeAccounts(match, account))
       } else {
         throw Error(`Account (${Util.stringify(account)}) conflicts with accounts:\n${Util.stringify(matches)}`)
       }
     })
-
-    return accs
   }
 
-  public async importTransactions (accounts: Accounts): Promise<Transactions> {
+  public async importTransactions (): Promise<void> {
     const fireflyTransactions = await this.getTransactions()
-    const trans = new Transactions()
 
     // Process each Firefly transaction
     fireflyTransactions.forEach(fireflyTransaction => {
@@ -340,8 +367,8 @@ export class Firefly {
       const externalIds = externalId.length === 0 ? [] : externalId.split(',')
       const akahuIds = externalIds.filter(id => id.startsWith('trans_'))
 
-      const source = accounts.getByFireflyId(fireflyTransaction.source_id)
-      const destination = accounts.getByFireflyId(fireflyTransaction.destination_id)
+      const source = this.actualAccounts.getByFireflyId(fireflyTransaction.source_id)
+      const destination = this.actualAccounts.getByFireflyId(fireflyTransaction.destination_id)
 
       // Confirm source and destination account exist
       // This should be enforced by a foreign key in the database
@@ -363,10 +390,8 @@ export class Firefly {
       if (fireflyTransaction.foreign_currency_code !== null) transaction.foreignCurrencyCode = fireflyTransaction.foreign_currency_code
       if (fireflyTransaction.category_name !== null) transaction.categoryName = fireflyTransaction.category_name
 
-      trans.create(transaction)
+      this.actualTransactions.create(transaction)
     })
-
-    return trans
   }
 
   private updateNotes (notes: string | undefined, akahuId: string | undefined, otherNames: string[]): string {
@@ -492,13 +517,9 @@ export class Firefly {
     return update
   }
 
-  public async exportTransactions (
+  public async export (
     basePath: string,
     apiKey: string,
-    current: Transactions,
-    modified: Transactions,
-    currentAccounts: Accounts,
-    modifiedAccounts: Accounts,
     dryRun: boolean
   ): Promise<void> {
     const config = new fireflySDK.Configuration({
@@ -511,38 +532,38 @@ export class Firefly {
     const factory = fireflySDK.TransactionsApiFactory(config)
 
     // Create source / destination accounts as necessary
-    for (const transaction of modified) {
-      const source = modifiedAccounts.get(transaction.sourceId)
+    for (const transaction of this.transactions) {
+      const source = this.accounts.get(transaction.sourceId)
       if (source === undefined) throw Error(`Invalid account ID ${transaction.sourceId}`)
 
       if (source.source === undefined) {
         source.source = {
           type: AccountAccountType.Revenue
         }
-        modifiedAccounts.save(source)
+        this.accounts.save(source)
       }
 
-      const destination = modifiedAccounts.get(transaction.destinationId)
+      const destination = this.accounts.get(transaction.destinationId)
       if (destination === undefined) throw Error(`Invalid account ID ${transaction.destinationId}`)
 
       if (destination.destination === undefined) {
         destination.destination = {
           type: AccountAccountType.Expense
         }
-        modifiedAccounts.save(destination)
+        this.accounts.save(destination)
       }
     }
 
-    await this.exportAccounts(basePath, apiKey, currentAccounts, modifiedAccounts, dryRun)
+    await this.exportAccounts(basePath, apiKey, this.actualAccounts, this.accounts, dryRun)
 
     // Process each Firefly transaction
-    for (const transaction of modified) {
-      const update = this.transformTransaction(transaction, modifiedAccounts)
+    for (const transaction of this.transactions) {
+      const update = this.transformTransaction(transaction, this.accounts)
 
       // Check if transaction has been modified
-      const oldTransaction = current.get(transaction.id)
+      const oldTransaction = this.actualTransactions.get(transaction.id)
       if (oldTransaction !== undefined) {
-        const otherUpdate = this.transformTransaction(oldTransaction, modifiedAccounts)
+        const otherUpdate = this.transformTransaction(oldTransaction, this.accounts)
         if (JSON.stringify(update) === JSON.stringify(otherUpdate)) continue
       }
 

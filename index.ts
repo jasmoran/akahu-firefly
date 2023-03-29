@@ -61,21 +61,15 @@ async function main (): Promise<void> {
     await updateAkahuTransactions(transactionsTable, akahu, userToken)
   }
 
+  console.log('Importing Firefly accounts and transactions')
   const firefly = new Firefly()
-
-  console.log('Importing Firefly accounts')
-  const accounts = await firefly.importAccounts()
-  const originalAccounts = accounts.duplicate()
-
-  console.log('Importing Firefly transactions')
-  const transactions = await firefly.importTransactions(accounts)
-  const originalTransactions = transactions.duplicate()
+  firefly.import()
 
   console.log('Importing Akahu transactions')
-  const akahuTransactions = await akahuImport.importTransactions(accounts)
+  const akahuTransactions = await akahuImport.importTransactions(firefly.accounts)
 
   console.log('Merging transactions')
-  transactions.merge(akahuTransactions, (a, b) => {
+  firefly.transactions.merge(akahuTransactions, (a, b) => {
     // Check Akahu IDs match
     if (a.akahuIds.size === 0 || b.akahuIds.size === 0) return true
     return [...a.akahuIds].sort().join(',') === [...b.akahuIds].sort().join(',')
@@ -93,7 +87,7 @@ async function main (): Promise<void> {
   const dryRun = process.env['DRY_RUN'] === 'true'
 
   console.log('Exporting transactions to Firefly')
-  await firefly.exportTransactions(basePath, apiKey, originalTransactions, transactions, originalAccounts, accounts, dryRun)
+  await firefly.export(basePath, apiKey, dryRun)
 
   console.log('Finished')
 }
