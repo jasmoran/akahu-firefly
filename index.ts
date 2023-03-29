@@ -5,7 +5,6 @@ import { AkahuClient } from 'akahu'
 import type { Account, Transaction, TransactionQueryParams } from 'akahu'
 
 import * as firefly from './lib/firefly'
-import * as fireflyExport from './lib/firefly-export'
 import * as akahuImport from './lib/akahu-import'
 import type { Transaction as Trans } from './lib/transactions'
 
@@ -92,7 +91,7 @@ async function main (): Promise<void> {
   const dryRun = process.env['DRY_RUN'] === 'true'
 
   console.log('Exporting transactions to Firefly')
-  await fireflyExport.exportTransactions(basePath, apiKey, originalTransactions, transactions, originalAccounts, accounts, dryRun)
+  await firefly.exportTransactions(basePath, apiKey, originalTransactions, transactions, originalAccounts, accounts, dryRun)
 
   console.log('Finished')
 }
