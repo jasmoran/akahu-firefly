@@ -4,7 +4,7 @@ import { production } from './knexfile'
 import { AkahuClient } from 'akahu'
 import type { Account, Transaction, TransactionQueryParams } from 'akahu'
 
-import * as firefly from './lib/firefly'
+import { Firefly } from './lib/firefly'
 import * as akahuImport from './lib/akahu-import'
 import type { Transaction as Trans } from './lib/transactions'
 
@@ -60,6 +60,8 @@ async function main (): Promise<void> {
     await updateAkahuAccounts(accountsTable, akahu, userToken)
     await updateAkahuTransactions(transactionsTable, akahu, userToken)
   }
+
+  const firefly = new Firefly()
 
   console.log('Importing Firefly accounts')
   const accounts = await firefly.importAccounts()
