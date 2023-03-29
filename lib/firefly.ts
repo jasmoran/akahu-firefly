@@ -7,7 +7,7 @@ import { Account as AccountAccount, Accounts, AccountType as AccountAccountType 
 import { Transaction as TransactionTransaction, Transactions } from './transactions'
 import { Util } from './util'
 
-export enum AccountType {
+enum AccountType {
   Default = 'Default account',
   Cash = 'Cash account',
   Asset = 'Asset account',
@@ -23,7 +23,7 @@ export enum AccountType {
   LiabilityCredit = 'Liability credit account'
 }
 
-export interface Account {
+interface Account {
   id: number
   type: AccountType
   name: string
@@ -33,7 +33,7 @@ export interface Account {
   notes: string | null
 }
 
-export interface Transaction {
+interface Transaction {
   id: number
   type: string
   description: string
@@ -106,11 +106,11 @@ const transactionMapping = {
   }
 }
 
-export const ALT_NAMES_REGEX = /\*\*Alternate names\*\*(\n-\s*`[^`]+`)+/
-export const AKAHU_ID_REGEX = /\*\*Akahu ID\*\*\s*`([^`]+)`/
+const ALT_NAMES_REGEX = /\*\*Alternate names\*\*(\n-\s*`[^`]+`)+/
+const AKAHU_ID_REGEX = /\*\*Akahu ID\*\*\s*`([^`]+)`/
 
 // Fetch all accounts
-export async function accounts (): Promise<Account[]> {
+async function accounts (): Promise<Account[]> {
   const db = knex(firefly)
   const accounts = await db('accounts AS acc')
     .select(
@@ -147,7 +147,7 @@ export async function accounts (): Promise<Account[]> {
 }
 
 // Fetch all transactions
-export async function transactions (): Promise<Transaction[]> {
+async function transactions (): Promise<Transaction[]> {
   const db = knex(firefly)
   const transactions = await db('transaction_journals AS tj')
     .select(
