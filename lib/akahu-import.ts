@@ -2,7 +2,7 @@ import knex from 'knex'
 import Big from 'big.js'
 import type { Transaction as AkahuTransaction } from 'akahu'
 import { production } from '../knexfile'
-import { Account, Accounts } from './accounts'
+import { Accounts } from './accounts'
 import { Transaction, Transactions } from './transactions'
 import { Util } from './util'
 
@@ -20,8 +20,8 @@ interface Row<T> {
 
 type IncompleteTransaction = Omit<Transaction, 'id'>
 
-function findAccount (accounts: Accounts, transaction: AkahuTransaction): Account {
-  let account: Account | undefined
+function findAccount (accounts: Accounts, transaction: AkahuTransaction): Accounts.Account {
+  let account: Accounts.Account | undefined
 
   // Interest is a special case - match any account that contains the word interest
   if (transaction.description.toLowerCase().includes('interest')) {
@@ -76,7 +76,7 @@ function transformTransaction (accounts: Accounts, transaction: AkahuTransaction
     accounts.save(foundAccount)
   }
 
-  let source: Account, destination: Account
+  let source: Accounts.Account, destination: Accounts.Account
   if (transaction.amount < 0) {
     // TODO: Enhance with data from this transaction
     source = account

@@ -3,7 +3,7 @@ import { TransactionTypeProperty } from 'firefly-iii-sdk-typescript'
 import knex from 'knex'
 import Big from 'big.js'
 import { firefly } from '../knexfile'
-import { Account as AccountAccount, Accounts, AccountType as AccountAccountType } from './accounts'
+import { Accounts } from './accounts'
 import { Transaction as TransactionTransaction, Transactions } from './transactions'
 import { Util } from './util'
 
@@ -99,41 +99,41 @@ export class Firefly {
 
   // Map Firefly account types to Asset, Liability, Expense and Revenue
   // Ignore type accounts will be discarded
-  private static readonly TypeMapping: { [K in AccountType]?: AccountAccountType } = {
-    [AccountType.Default]: AccountAccountType.Asset,
-    [AccountType.Cash]: AccountAccountType.Asset,
-    [AccountType.Asset]: AccountAccountType.Asset,
-    [AccountType.Expense]: AccountAccountType.Expense,
-    [AccountType.Revenue]: AccountAccountType.Revenue,
-    [AccountType.Loan]: AccountAccountType.Liability,
-    [AccountType.Debt]: AccountAccountType.Liability,
-    [AccountType.Mortgage]: AccountAccountType.Liability
+  private static readonly TypeMapping: { [K in AccountType]?: Accounts.Type } = {
+    [AccountType.Default]: Accounts.Type.Asset,
+    [AccountType.Cash]: Accounts.Type.Asset,
+    [AccountType.Asset]: Accounts.Type.Asset,
+    [AccountType.Expense]: Accounts.Type.Expense,
+    [AccountType.Revenue]: Accounts.Type.Revenue,
+    [AccountType.Loan]: Accounts.Type.Liability,
+    [AccountType.Debt]: Accounts.Type.Liability,
+    [AccountType.Mortgage]: Accounts.Type.Liability
   }
 
   private static readonly transactionMapping = {
-    [AccountAccountType.Asset]: {
-      [AccountAccountType.Asset]: TransactionTypeProperty.Transfer,
-      [AccountAccountType.Liability]: TransactionTypeProperty.Withdrawal,
-      [AccountAccountType.Expense]: TransactionTypeProperty.Withdrawal,
-      [AccountAccountType.Revenue]: undefined
+    [Accounts.Type.Asset]: {
+      [Accounts.Type.Asset]: TransactionTypeProperty.Transfer,
+      [Accounts.Type.Liability]: TransactionTypeProperty.Withdrawal,
+      [Accounts.Type.Expense]: TransactionTypeProperty.Withdrawal,
+      [Accounts.Type.Revenue]: undefined
     },
-    [AccountAccountType.Liability]: {
-      [AccountAccountType.Asset]: TransactionTypeProperty.Deposit,
-      [AccountAccountType.Liability]: TransactionTypeProperty.Transfer,
-      [AccountAccountType.Expense]: TransactionTypeProperty.Withdrawal,
-      [AccountAccountType.Revenue]: undefined
+    [Accounts.Type.Liability]: {
+      [Accounts.Type.Asset]: TransactionTypeProperty.Deposit,
+      [Accounts.Type.Liability]: TransactionTypeProperty.Transfer,
+      [Accounts.Type.Expense]: TransactionTypeProperty.Withdrawal,
+      [Accounts.Type.Revenue]: undefined
     },
-    [AccountAccountType.Expense]: {
-      [AccountAccountType.Asset]: undefined,
-      [AccountAccountType.Liability]: undefined,
-      [AccountAccountType.Expense]: undefined,
-      [AccountAccountType.Revenue]: undefined
+    [Accounts.Type.Expense]: {
+      [Accounts.Type.Asset]: undefined,
+      [Accounts.Type.Liability]: undefined,
+      [Accounts.Type.Expense]: undefined,
+      [Accounts.Type.Revenue]: undefined
     },
-    [AccountAccountType.Revenue]: {
-      [AccountAccountType.Asset]: TransactionTypeProperty.Deposit,
-      [AccountAccountType.Liability]: TransactionTypeProperty.Deposit,
-      [AccountAccountType.Expense]: undefined,
-      [AccountAccountType.Revenue]: undefined
+    [Accounts.Type.Revenue]: {
+      [Accounts.Type.Asset]: TransactionTypeProperty.Deposit,
+      [Accounts.Type.Liability]: TransactionTypeProperty.Deposit,
+      [Accounts.Type.Expense]: undefined,
+      [Accounts.Type.Revenue]: undefined
     }
   }
 
@@ -223,10 +223,10 @@ export class Firefly {
   }
 
   // Find all accounts that match any of the provided identifiers
-  private findMatches (account: Omit<AccountAccount, 'id'>): AccountAccount[] {
-    const matches: Map<number, AccountAccount> = new Map()
+  private findMatches (account: Omit<Accounts.Account, 'id'>): Accounts.Account[] {
+    const matches: Map<number, Accounts.Account> = new Map()
 
-    const addAccount = (acc: AccountAccount | undefined): void => {
+    const addAccount = (acc: Accounts.Account | undefined): void => {
       if (acc !== undefined) {
         matches.set(acc.id, acc)
       }
@@ -252,7 +252,7 @@ export class Firefly {
     return [...matches.values()]
   }
 
-  private mergeAccounts (a: AccountAccount, b: Omit<AccountAccount, 'id'>): AccountAccount {
+  private mergeAccounts (a: Accounts.Account, b: Omit<Accounts.Account, 'id'>): Accounts.Account {
     // Ensure only one account has source set
     if (a.source !== undefined && b.source !== undefined) {
       throw Error(`Merging two accounts with Source Firefly IDs ${Util.stringify([a, b])}`)
@@ -301,12 +301,12 @@ export class Firefly {
       const notes = fireflyAccount.notes ?? undefined
 
       // Set source & destination Firefly IDs
-      const source = type === AccountAccountType.Expense ? undefined : { fireflyId: fireflyAccount.id, type, notes }
-      const destination = type === AccountAccountType.Revenue ? undefined : { fireflyId: fireflyAccount.id, type, notes }
+      const source = type === Accounts.Type.Expense ? undefined : { fireflyId: fireflyAccount.id, type, notes }
+      const destination = type === Accounts.Type.Revenue ? undefined : { fireflyId: fireflyAccount.id, type, notes }
 
       // Create Account from Firefly data
       const name = fireflyAccount.name.trim()
-      const account: Omit<AccountAccount, 'id'> = {
+      const account: Omit<Accounts.Account, 'id'> = {
         source,
         destination,
         akahuId,
@@ -347,7 +347,7 @@ export class Firefly {
       if (match === undefined) {
         // Create a new account if there are no existing accounts
         this.actualAccounts.create(account)
-      } else if (others === undefined && (type === AccountAccountType.Revenue || type === AccountAccountType.Expense)) {
+      } else if (others === undefined && (type === Accounts.Type.Revenue || type === Accounts.Type.Expense)) {
         // Merge expense / revenue accounts
         this.actualAccounts.save(this.mergeAccounts(match, account))
       } else {
@@ -413,8 +413,8 @@ export class Firefly {
   }
 
   private async updateAccount (
-    account: AccountAccount,
-    oldAccount: AccountAccount | undefined,
+    account: Accounts.Account,
+    oldAccount: Accounts.Account | undefined,
     select: 'source' | 'destination',
     config: fireflySDK.Configuration,
     dryRun: boolean
@@ -480,7 +480,7 @@ export class Firefly {
       await this.updateAccount(account, oldAccount, 'source', config, dryRun)
 
       // Process destination (if different from source)
-      if (account.destination?.type === AccountAccountType.Expense) {
+      if (account.destination?.type === Accounts.Type.Expense) {
         await this.updateAccount(account, oldAccount, 'destination', config, dryRun)
       }
     }
@@ -536,7 +536,7 @@ export class Firefly {
 
       if (source.source === undefined) {
         source.source = {
-          type: AccountAccountType.Revenue
+          type: Accounts.Type.Revenue
         }
         this.accounts.save(source)
       }
@@ -546,7 +546,7 @@ export class Firefly {
 
       if (destination.destination === undefined) {
         destination.destination = {
-          type: AccountAccountType.Expense
+          type: Accounts.Type.Expense
         }
         this.accounts.save(destination)
       }

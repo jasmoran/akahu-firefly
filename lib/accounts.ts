@@ -1,39 +1,13 @@
 import { compareTwoStrings } from 'string-similarity'
 import { Util } from './util'
 
-// List account types
-export enum AccountType {
-  Asset = 'asset',
-  Liability = 'liability',
-  Expense = 'expense',
-  Revenue = 'revenue'
-}
-
-export interface Account {
-  id: number
-  source?: {
-    fireflyId?: number
-    type: AccountType
-    notes?: string | undefined
-  } | undefined
-  destination?: {
-    fireflyId?: number
-    type: AccountType
-    notes?: string | undefined
-  } | undefined
-  akahuId: string | undefined
-  name: string
-  bankNumbers: Set<string>
-  alternateNames: Map<string, string>
-}
-
-export class Accounts implements Iterable<Account> {
+export class Accounts implements Iterable<Accounts.Account> {
   private static counter = 0
-  private readonly accounts: Map<number, Account> = new Map()
-  private readonly fireflyIdIndex: Map<number, Account> = new Map()
-  private readonly akahuIdIndex: Map<string, Account> = new Map()
-  private readonly bankNumberIndex: Map<string, Account> = new Map()
-  private readonly nameIndex: Map<string, Account> = new Map()
+  private readonly accounts: Map<number, Accounts.Account> = new Map()
+  private readonly fireflyIdIndex: Map<number, Accounts.Account> = new Map()
+  private readonly akahuIdIndex: Map<string, Accounts.Account> = new Map()
+  private readonly bankNumberIndex: Map<string, Accounts.Account> = new Map()
+  private readonly nameIndex: Map<string, Accounts.Account> = new Map()
 
   // Formats a bank account string:
   // 2 digit Bank Number
@@ -48,7 +22,7 @@ export class Accounts implements Iterable<Account> {
       .join('-')
   }
 
-  private index (account: Account): void {
+  private index (account: Accounts.Account): void {
     this.accounts.set(account.id, account)
 
     // Add account to fireflyIdIndex
@@ -100,7 +74,7 @@ export class Accounts implements Iterable<Account> {
     })
   }
 
-  private deindex (account: Account): void {
+  private deindex (account: Accounts.Account): void {
     // Remove account from fireflyIdIndex
     if (account.source?.fireflyId !== undefined) {
       this.fireflyIdIndex.delete(account.source?.fireflyId)
@@ -125,29 +99,29 @@ export class Accounts implements Iterable<Account> {
     })
   }
 
-  private clone (account: Account): Account {
+  private clone (account: Accounts.Account): Accounts.Account {
     const clone = { ...account }
     clone.bankNumbers = new Set(clone.bankNumbers)
     clone.alternateNames = new Map(clone.alternateNames)
     return clone
   }
 
-  public get (id: number): Account | undefined {
+  public get (id: number): Accounts.Account | undefined {
     const res = this.accounts.get(id)
     return res === undefined ? undefined : this.clone(res)
   }
 
-  public getByAkahuId (akahuId: string): Account | undefined {
+  public getByAkahuId (akahuId: string): Accounts.Account | undefined {
     const res = this.akahuIdIndex.get(akahuId)
     return res === undefined ? undefined : this.clone(res)
   }
 
-  public getByFireflyId (fireflyId: number): Account | undefined {
+  public getByFireflyId (fireflyId: number): Accounts.Account | undefined {
     const res = this.fireflyIdIndex.get(fireflyId)
     return res === undefined ? undefined : this.clone(res)
   }
 
-  public getByBankNumber (bankNumber: string): Account | undefined {
+  public getByBankNumber (bankNumber: string): Accounts.Account | undefined {
     const formatted = Accounts.formatBankNumber(bankNumber)
     const res = this.bankNumberIndex.get(formatted)
     return res === undefined ? undefined : this.clone(res)
@@ -160,12 +134,12 @@ export class Accounts implements Iterable<Account> {
       .trim()
   }
 
-  public getByName (name: string): Account | undefined {
+  public getByName (name: string): Accounts.Account | undefined {
     const res = this.nameIndex.get(Accounts.normalizeName(name))
     return res === undefined ? undefined : this.clone(res)
   }
 
-  public getByNameFuzzy (source: string): [Account, number] {
+  public getByNameFuzzy (source: string): [Accounts.Account, number] {
     let bestMatch
     let bestRating = 0
 
@@ -188,7 +162,7 @@ export class Accounts implements Iterable<Account> {
     return [bestMatch, bestRating]
   }
 
-  public save (account: Account): void {
+  public save (account: Accounts.Account): void {
     // Check if the ID exists
     const existing = this.accounts.get(account.id)
     if (existing === undefined) {
@@ -214,8 +188,8 @@ export class Accounts implements Iterable<Account> {
     this.index(account)
   }
 
-  public create (inputAccount: Omit<Account, 'id'>): Account {
-    const account = inputAccount as Account
+  public create (inputAccount: Omit<Accounts.Account, 'id'>): Accounts.Account {
+    const account = inputAccount as Accounts.Account
     Accounts.counter++
     account.id = Accounts.counter
     this.index(account)
@@ -230,9 +204,37 @@ export class Accounts implements Iterable<Account> {
     return newAccounts
   }
 
-  public * [Symbol.iterator] (): Iterator<Account> {
+  public * [Symbol.iterator] (): Iterator<Accounts.Account> {
     for (const account of this.accounts.values()) {
       yield this.clone(account)
     }
+  }
+}
+
+export namespace Accounts {
+  // List account types
+  export enum Type {
+    Asset = 'asset',
+    Liability = 'liability',
+    Expense = 'expense',
+    Revenue = 'revenue'
+  }
+
+  export interface Account {
+    id: number
+    source?: {
+      fireflyId?: number
+      type: Type
+      notes?: string | undefined
+    } | undefined
+    destination?: {
+      fireflyId?: number
+      type: Type
+      notes?: string | undefined
+    } | undefined
+    akahuId: string | undefined
+    name: string
+    bankNumbers: Set<string>
+    alternateNames: Map<string, string>
   }
 }
