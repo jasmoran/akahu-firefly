@@ -111,7 +111,7 @@ export class Firefly {
   private static readonly AKAHU_ID_REGEX = /\*\*Akahu ID\*\*\s*`([^`]+)`/
 
   // Fetch all accounts
-  private async accounts (): Promise<Account[]> {
+  private async getAccounts (): Promise<Account[]> {
     const db = knex(firefly)
     const accounts = await db('accounts AS acc')
       .select(
@@ -148,7 +148,7 @@ export class Firefly {
   }
 
   // Fetch all transactions
-  private async transactions (): Promise<Transaction[]> {
+  private async getTransactions (): Promise<Transaction[]> {
     const db = knex(firefly)
     const transactions = await db('transaction_journals AS tj')
       .select(
@@ -253,7 +253,7 @@ export class Firefly {
   }
 
   public async importAccounts (): Promise<Accounts> {
-    const fireflyAccounts = await this.accounts()
+    const fireflyAccounts = await this.getAccounts()
     const accs = new Accounts()
 
     // Process each Firefly account
@@ -329,7 +329,7 @@ export class Firefly {
   }
 
   public async importTransactions (accounts: Accounts): Promise<Transactions> {
-    const fireflyTransactions = await this.transactions()
+    const fireflyTransactions = await this.getTransactions()
     const trans = new Transactions()
 
     // Process each Firefly transaction
